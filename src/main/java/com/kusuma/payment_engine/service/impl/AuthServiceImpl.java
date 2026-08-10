@@ -42,10 +42,15 @@ public class AuthServiceImpl implements AuthService {
 	public RegisterResponse register(RegisterRequest request) {
 		String normalizedEmail = request.getEmail().trim().toLowerCase();
 		String normalizedFullName = request.getFullName().trim().replaceAll("\\s+", " ");
+		// String phoneNumber = request.getPhoneNumber();
+		String normalizedPhoneNumber = request.getPhoneNumber().trim();
 		log.info("User registration initiated. Email={}", normalizedEmail);
 		if (userRepository.existsByEmail(normalizedEmail)) {
 			log.warn("Registration failed. Duplicate email={}", normalizedEmail);
 			throw new UserAlreadyExistsException("User already exists with email : " + normalizedEmail);
+		}
+		if (userRepository.existsByPhoneNumber(normalizedPhoneNumber)) {
+			throw new UserAlreadyExistsException("User already exists with phone number : " + request.getPhoneNumber());
 		}
 		User user = User.builder().fullName(normalizedFullName).email(normalizedEmail)
 				.password(passwordEncoder.encode(request.getPassword())).role(Role.CUSTOMER).status(UserStatus.ACTIVE)
@@ -60,9 +65,10 @@ public class AuthServiceImpl implements AuthService {
 		log.info("User registration completed successfully. UserId={}, Email={}", savedUser.getId(),
 				savedUser.getEmail());
 		return RegisterResponse.builder().userId(savedUser.getId()).fullName(savedUser.getFullName())
-				.email(savedUser.getEmail()).message("User Registered Successfully").build();
+				.phoneNumber(normalizedPhoneNumber).email(savedUser.getEmail())
+				.message("User Registered Successfully").build();
 	}
-	
+
 	@Override
 	public String resendOtp(ResendOtpRequest request) {
 		String email = request.getEmail().trim().toLowerCase();

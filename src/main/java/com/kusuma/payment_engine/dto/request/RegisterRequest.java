@@ -24,4 +24,11 @@ public class RegisterRequest {
             regexp = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@#$%^&+=!]).*$",
             message = "Password must contain uppercase, lowercase, digit and special character")
     private String password;
+    
+    @NotBlank(message = "Phone number is required")
+    @Pattern(
+        regexp = "^[6-9]\\d{9}$",
+        message = "Invalid phone number"
+    )
+    private String phoneNumber;
 }
