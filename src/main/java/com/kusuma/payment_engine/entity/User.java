@@ -45,17 +45,14 @@ public class User extends BaseEntity {
     private UserStatus status;
 
     private LocalDateTime lastLoginAt;
+    
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean emailVerified = false;
 
-    @PrePersist
-    public void prePersist() {
+    @Builder.Default
+    @Column(nullable = false)
+    private Integer failedLoginAttempts = 0;
 
-        this.setCreatedAt(LocalDateTime.now());
-        this.setUpdatedAt(LocalDateTime.now());
-    }
-
-    @PreUpdate
-    public void preUpdate() {
-
-        this.setUpdatedAt(LocalDateTime.now());
-    }
+    private LocalDateTime accountLockedUntil;
 }
