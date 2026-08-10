@@ -32,6 +32,16 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ex.getMessage());
 	}
 
+	@ExceptionHandler(InvalidCredentialsException.class)
+	public ResponseEntity<String> handleInvalidCredentials(InvalidCredentialsException ex) {
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
+	}
+
+	@ExceptionHandler(EmailNotVerifiedException.class)
+	public ResponseEntity<String> handleEmailNotVerified(EmailNotVerifiedException ex) {
+		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ex.getMessage());
+	}
+
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
 		Map<String, String> errors = new HashMap<>();

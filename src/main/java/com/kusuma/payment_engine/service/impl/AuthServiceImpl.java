@@ -8,14 +8,18 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.kusuma.payment_engine.dto.request.LoginRequest;
 import com.kusuma.payment_engine.dto.request.RegisterRequest;
 import com.kusuma.payment_engine.dto.request.ResendOtpRequest;
 import com.kusuma.payment_engine.dto.request.VerifyOtpRequest;
+import com.kusuma.payment_engine.dto.response.LoginResponse;
 import com.kusuma.payment_engine.dto.response.RegisterResponse;
 import com.kusuma.payment_engine.entity.EmailVerificationOtp;
 import com.kusuma.payment_engine.entity.User;
 import com.kusuma.payment_engine.enums.Role;
 import com.kusuma.payment_engine.enums.UserStatus;
+import com.kusuma.payment_engine.exception.EmailNotVerifiedException;
+import com.kusuma.payment_engine.exception.InvalidCredentialsException;
 import com.kusuma.payment_engine.exception.InvalidOtpException;
 import com.kusuma.payment_engine.exception.OtpExpiredException;
 import com.kusuma.payment_engine.exception.UserAlreadyExistsException;
@@ -52,7 +56,7 @@ public class AuthServiceImpl implements AuthService {
 		if (userRepository.existsByPhoneNumber(normalizedPhoneNumber)) {
 			throw new UserAlreadyExistsException("User already exists with phone number : " + request.getPhoneNumber());
 		}
-		User user = User.builder().fullName(normalizedFullName).email(normalizedEmail)
+		User user = User.builder().fullName(normalizedFullName).email(normalizedEmail).phoneNumber(normalizedPhoneNumber)
 				.password(passwordEncoder.encode(request.getPassword())).role(Role.CUSTOMER).status(UserStatus.ACTIVE)
 				.build();
 		User savedUser = userRepository.save(user);
@@ -65,8 +69,8 @@ public class AuthServiceImpl implements AuthService {
 		log.info("User registration completed successfully. UserId={}, Email={}", savedUser.getId(),
 				savedUser.getEmail());
 		return RegisterResponse.builder().userId(savedUser.getId()).fullName(savedUser.getFullName())
-				.phoneNumber(normalizedPhoneNumber).email(savedUser.getEmail())
-				.message("User Registered Successfully").build();
+				.phoneNumber(normalizedPhoneNumber).email(savedUser.getEmail()).message("User Registered Successfully")
+				.build();
 	}
 
 	@Override
@@ -127,5 +131,38 @@ public class AuthServiceImpl implements AuthService {
 		otpRepository.save(otpRecord);
 		log.info("Email verified successfully. Email={}", normalizedEmail);
 		return "Email verified successfully";
+	}
+
+	@Override
+	@Transactional(noRollbackFor = InvalidCredentialsException.class)
+	public LoginResponse login(LoginRequest request) {
+		String normalizedEmail = request.getEmail().trim().toLowerCase();
+		User user = userRepository.findByEmail(normalizedEmail)
+				.orElseThrow(() -> new InvalidCredentialsException("Invalid email or password"));
+		if (!Boolean.TRUE.equals(user.getEmailVerified())) {
+			log.warn("Login failed. Email not verified. Email={}", normalizedEmail);
+			throw new EmailNotVerifiedException("Please verify your email first.");
+		}
+		if (user.getAccountLockedUntil() != null && user.getAccountLockedUntil().isAfter(LocalDateTime.now())) {
+			log.warn("Login attempted on locked account. Email={}", normalizedEmail);
+			throw new InvalidCredentialsException("Account is locked. Try again later.");
+		}
+		if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+			user.setFailedLoginAttempts(user.getFailedLoginAttempts() + 1);
+			log.warn("Invalid password attempt {} for Email={}", user.getFailedLoginAttempts(), normalizedEmail);
+			if (user.getFailedLoginAttempts() >= 5) {
+				user.setAccountLockedUntil(LocalDateTime.now().plusMinutes(30));
+				log.warn("User account locked for 30 minutes. Email={}", normalizedEmail);
+			}
+			userRepository.save(user);
+			throw new InvalidCredentialsException("Invalid email or password");
+		}
+		user.setFailedLoginAttempts(0);
+		user.setAccountLockedUntil(null);
+		user.setLastLoginAt(LocalDateTime.now());
+		userRepository.save(user);
+		log.info("User logged in successfully. UserId={}, Email={}", user.getId(), user.getEmail());
+		return LoginResponse.builder().userId(user.getId()).email(user.getEmail()).role(user.getRole().name())
+				.message("Login Successful").build();
 	}
 }

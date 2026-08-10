@@ -1,7 +1,6 @@
 package com.kusuma.payment_engine.controller;
 
 import org.springframework.http.HttpStatus;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -9,10 +8,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.kusuma.payment_engine.dto.request.LoginRequest;
 import com.kusuma.payment_engine.dto.request.RegisterRequest;
-import com.kusuma.payment_engine.dto.request.VerifyOtpRequest;
-import com.kusuma.payment_engine.dto.response.RegisterResponse;
 import com.kusuma.payment_engine.dto.request.ResendOtpRequest;
+import com.kusuma.payment_engine.dto.request.VerifyOtpRequest;
+import com.kusuma.payment_engine.dto.response.LoginResponse;
+import com.kusuma.payment_engine.dto.response.RegisterResponse;
 import com.kusuma.payment_engine.service.AuthService;
 
 import jakarta.validation.Valid;
@@ -40,5 +41,10 @@ public class AuthController {
 	@PostMapping("/resend-otp")
 	public ResponseEntity<String> resendOtp(@RequestBody @Valid ResendOtpRequest request) {
 		return ResponseEntity.ok(authService.resendOtp(request));
+	}
+
+	@PostMapping("/login")
+	public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
+		return ResponseEntity.ok(authService.login(request));
 	}
 }
