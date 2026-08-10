@@ -4,6 +4,7 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
+import com.kusuma.payment_engine.exception.EmailDeliveryException;
 import com.kusuma.payment_engine.service.EmailService;
 
 import lombok.RequiredArgsConstructor;
@@ -16,10 +17,14 @@ public class EmailServiceImpl implements EmailService {
 
 	@Override
 	public void sendOtpEmail(String toEmail, String otp) {
-		SimpleMailMessage message = new SimpleMailMessage();
-		message.setTo(toEmail);
-		message.setSubject("Payment Engine Email Verification");
-		message.setText("Your OTP is : " + otp + "\n\nValid for 5 minutes.");
-		mailSender.send(message);
+		try {
+			SimpleMailMessage message = new SimpleMailMessage();
+			message.setTo(toEmail);
+			message.setSubject("Payment Engine Email Verification");
+			message.setText("Your OTP is : " + otp + "\n\nValid for 5 minutes.");
+			mailSender.send(message);
+		} catch (Exception ex) {
+			throw new EmailDeliveryException("Failed to send OTP email.");
+		}
 	}
 }

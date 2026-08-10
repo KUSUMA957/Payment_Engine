@@ -29,7 +29,17 @@ public class EmailVerificationOtp extends BaseEntity {
     @Column(nullable = false)
     private LocalDateTime expiresAt;
 
+    private LocalDateTime lastSentAt;
+    
     @Builder.Default
     @Column(nullable = false)
     private Boolean used = false;
+    
+    @Builder.Default
+    @Column(nullable = false)
+    private Integer failedAttempts = 0;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean locked = false;
 }

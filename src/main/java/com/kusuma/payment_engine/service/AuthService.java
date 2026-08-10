@@ -7,9 +7,9 @@ import com.kusuma.payment_engine.dto.response.RegisterResponse;
 
 public interface AuthService {
 
-    RegisterResponse register(RegisterRequest request);
+	RegisterResponse register(RegisterRequest request);
 
-    String verifyEmailOtp(VerifyOtpRequest request);
+	String verifyEmailOtp(VerifyOtpRequest request);
 
-    String resendOtp(ResendOtpRequest request);
+	String resendOtp(ResendOtpRequest request);
 }
