@@ -8,9 +8,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.kusuma.payment_engine.dto.request.ForgotPasswordRequest;
 import com.kusuma.payment_engine.dto.request.LoginRequest;
 import com.kusuma.payment_engine.dto.request.RegisterRequest;
 import com.kusuma.payment_engine.dto.request.ResendOtpRequest;
+import com.kusuma.payment_engine.dto.request.ResetPasswordRequest;
 import com.kusuma.payment_engine.dto.request.VerifyOtpRequest;
 import com.kusuma.payment_engine.dto.response.LoginResponse;
 import com.kusuma.payment_engine.dto.response.RegisterResponse;
@@ -46,5 +48,15 @@ public class AuthController {
 	@PostMapping("/login")
 	public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
 		return ResponseEntity.ok(authService.login(request));
+	}
+
+	@PostMapping("/forgot-password")
+	public ResponseEntity<String> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+		return ResponseEntity.ok(authService.forgotPassword(request));
+	}
+
+	@PostMapping("/reset-password")
+	public ResponseEntity<String> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+		return ResponseEntity.ok(authService.resetPassword(request));
 	}
 }

@@ -8,14 +8,17 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.kusuma.payment_engine.dto.request.ForgotPasswordRequest;
 import com.kusuma.payment_engine.dto.request.LoginRequest;
 import com.kusuma.payment_engine.dto.request.RegisterRequest;
 import com.kusuma.payment_engine.dto.request.ResendOtpRequest;
+import com.kusuma.payment_engine.dto.request.ResetPasswordRequest;
 import com.kusuma.payment_engine.dto.request.VerifyOtpRequest;
 import com.kusuma.payment_engine.dto.response.LoginResponse;
 import com.kusuma.payment_engine.dto.response.RegisterResponse;
 import com.kusuma.payment_engine.entity.EmailVerificationOtp;
 import com.kusuma.payment_engine.entity.User;
+import com.kusuma.payment_engine.enums.OtpType;
 import com.kusuma.payment_engine.enums.Role;
 import com.kusuma.payment_engine.enums.UserStatus;
 import com.kusuma.payment_engine.exception.EmailNotVerifiedException;
@@ -46,31 +49,64 @@ public class AuthServiceImpl implements AuthService {
 	public RegisterResponse register(RegisterRequest request) {
 		String normalizedEmail = request.getEmail().trim().toLowerCase();
 		String normalizedFullName = request.getFullName().trim().replaceAll("\\s+", " ");
-		// String phoneNumber = request.getPhoneNumber();
 		String normalizedPhoneNumber = request.getPhoneNumber().trim();
 		log.info("User registration initiated. Email={}", normalizedEmail);
 		if (userRepository.existsByEmail(normalizedEmail)) {
-			log.warn("Registration failed. Duplicate email={}", normalizedEmail);
 			throw new UserAlreadyExistsException("User already exists with email : " + normalizedEmail);
 		}
 		if (userRepository.existsByPhoneNumber(normalizedPhoneNumber)) {
-			throw new UserAlreadyExistsException("User already exists with phone number : " + request.getPhoneNumber());
+			throw new UserAlreadyExistsException("User already exists with phone number : " + normalizedPhoneNumber);
 		}
-		User user = User.builder().fullName(normalizedFullName).email(normalizedEmail).phoneNumber(normalizedPhoneNumber)
-				.password(passwordEncoder.encode(request.getPassword())).role(Role.CUSTOMER).status(UserStatus.ACTIVE)
-				.build();
+		User user = User.builder().fullName(normalizedFullName).email(normalizedEmail)
+				.phoneNumber(normalizedPhoneNumber).password(passwordEncoder.encode(request.getPassword()))
+				.role(Role.CUSTOMER).status(UserStatus.ACTIVE).build();
 		User savedUser = userRepository.save(user);
 		String otp = OtpGeneratorUtil.generateOtp();
 		EmailVerificationOtp otpEntity = EmailVerificationOtp.builder().email(savedUser.getEmail()).otp(otp)
-				.expiresAt(LocalDateTime.now().plusMinutes(5)).lastSentAt(LocalDateTime.now()).used(false).build();
+				.otpType(OtpType.EMAIL_VERIFICATION).expiresAt(LocalDateTime.now().plusMinutes(5))
+				.lastSentAt(LocalDateTime.now()).used(false).build();
 		otpRepository.save(otpEntity);
 		emailService.sendOtpEmail(savedUser.getEmail(), otp);
-		log.info("OTP generated and sent. Email={}", savedUser.getEmail());
-		log.info("User registration completed successfully. UserId={}, Email={}", savedUser.getId(),
-				savedUser.getEmail());
 		return RegisterResponse.builder().userId(savedUser.getId()).fullName(savedUser.getFullName())
-				.phoneNumber(normalizedPhoneNumber).email(savedUser.getEmail()).message("User Registered Successfully")
-				.build();
+				.phoneNumber(savedUser.getPhoneNumber()).email(savedUser.getEmail())
+				.message("User Registered Successfully").build();
+	}
+
+	@Override
+	@Transactional(noRollbackFor = InvalidCredentialsException.class)
+	public LoginResponse login(LoginRequest request) {
+		String normalizedEmail = request.getEmail().trim().toLowerCase();
+		User user = userRepository.findByEmail(normalizedEmail)
+				.orElseThrow(() -> new InvalidCredentialsException("Invalid email or password"));
+		if (!Boolean.TRUE.equals(user.getEmailVerified())) {
+			throw new EmailNotVerifiedException("Please verify your email first.");
+		}
+		if (user.getAccountLockedUntil() != null && !user.getAccountLockedUntil().isAfter(LocalDateTime.now())) {
+			user.setFailedLoginAttempts(0);
+			user.setAccountLockedUntil(null);
+			userRepository.save(user);
+			log.info("Account lock expired. Resetting failed attempts. Email={}", normalizedEmail);
+		}
+		if (user.getAccountLockedUntil() != null && user.getAccountLockedUntil().isAfter(LocalDateTime.now())) {
+			throw new InvalidCredentialsException("Account is locked. Try again later.");
+		}
+		if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+			int attempts = user.getFailedLoginAttempts() + 1;
+			user.setFailedLoginAttempts(attempts);
+			if (attempts >= 5) {
+				user.setFailedLoginAttempts(5);
+				user.setAccountLockedUntil(LocalDateTime.now().plusMinutes(30));
+				log.warn("User account locked. Email={}", normalizedEmail);
+			}
+			userRepository.save(user);
+			throw new InvalidCredentialsException("Invalid email or password");
+		}
+		user.setFailedLoginAttempts(0);
+		user.setAccountLockedUntil(null);
+		user.setLastLoginAt(LocalDateTime.now());
+		userRepository.save(user);
+		return LoginResponse.builder().userId(user.getId()).email(user.getEmail()).role(user.getRole().name())
+				.message("Login Successful").build();
 	}
 
 	@Override
@@ -80,17 +116,19 @@ public class AuthServiceImpl implements AuthService {
 		if (Boolean.TRUE.equals(user.getEmailVerified())) {
 			throw new InvalidOtpException("Email already verified.");
 		}
-		EmailVerificationOtp latestOtp = otpRepository.findTopByEmailOrderByCreatedAtDesc(email).orElse(null);
+		EmailVerificationOtp latestOtp = otpRepository
+				.findTopByEmailAndOtpTypeOrderByCreatedAtDesc(email, OtpType.EMAIL_VERIFICATION).orElse(null);
 		if (latestOtp != null && latestOtp.getLastSentAt() != null
 				&& latestOtp.getLastSentAt().plusMinutes(1).isAfter(LocalDateTime.now())) {
 			throw new InvalidOtpException("Please wait 1 minute before requesting another OTP.");
 		}
 		String otp = OtpGeneratorUtil.generateOtp();
 		EmailVerificationOtp otpEntity = EmailVerificationOtp.builder().email(email).otp(otp)
-				.expiresAt(LocalDateTime.now().plusMinutes(5)).lastSentAt(LocalDateTime.now()).used(false).build();
+				.otpType(OtpType.EMAIL_VERIFICATION).expiresAt(LocalDateTime.now().plusMinutes(5))
+				.lastSentAt(LocalDateTime.now()).used(false).build();
 		otpRepository.save(otpEntity);
 		emailService.sendOtpEmail(email, otp);
-		log.info("New OTP sent successfully. Email={}", email);
+		log.info("New verification OTP sent successfully. Email={}", email);
 		return "OTP sent successfully";
 	}
 
@@ -98,8 +136,9 @@ public class AuthServiceImpl implements AuthService {
 	@Transactional(noRollbackFor = InvalidOtpException.class)
 	public String verifyEmailOtp(VerifyOtpRequest request) {
 		String normalizedEmail = request.getEmail().trim().toLowerCase();
-		EmailVerificationOtp otpRecord = otpRepository.findTopByEmailOrderByCreatedAtDesc(normalizedEmail)
-				.orElseThrow(() -> new InvalidOtpException("OTP not found for email: " + normalizedEmail));
+		EmailVerificationOtp otpRecord = otpRepository
+				.findTopByEmailAndOtpTypeOrderByCreatedAtDesc(normalizedEmail, OtpType.EMAIL_VERIFICATION)
+				.orElseThrow(() -> new InvalidOtpException("Email verification OTP not found"));
 		if (Boolean.TRUE.equals(otpRecord.getLocked())) {
 			log.warn("OTP verification attempted on locked OTP. Email={}", normalizedEmail);
 			throw new InvalidOtpException("OTP verification locked. Please request a new OTP.");
@@ -109,10 +148,11 @@ public class AuthServiceImpl implements AuthService {
 			throw new InvalidOtpException("OTP already used");
 		}
 		if (!otpRecord.getOtp().equals(request.getOtp())) {
-			log.info("Before increment : {}", otpRecord.getFailedAttempts());
-			otpRecord.setFailedAttempts(otpRecord.getFailedAttempts() + 1);
-			log.info("After increment : {}", otpRecord.getFailedAttempts());
-			if (otpRecord.getFailedAttempts() >= 5) {
+			int attempts = otpRecord.getFailedAttempts() + 1;
+			otpRecord.setFailedAttempts(attempts);
+			log.info("Failed OTP attempt count : {}", otpRecord.getFailedAttempts());
+			if (attempts >= 5) {
+				otpRecord.setFailedAttempts(5);
 				otpRecord.setLocked(true);
 				log.warn("OTP locked after maximum failed attempts. Email={}", normalizedEmail);
 			}
@@ -134,35 +174,66 @@ public class AuthServiceImpl implements AuthService {
 	}
 
 	@Override
-	@Transactional(noRollbackFor = InvalidCredentialsException.class)
-	public LoginResponse login(LoginRequest request) {
-		String normalizedEmail = request.getEmail().trim().toLowerCase();
-		User user = userRepository.findByEmail(normalizedEmail)
-				.orElseThrow(() -> new InvalidCredentialsException("Invalid email or password"));
+	public String forgotPassword(ForgotPasswordRequest request) {
+		String email = request.getEmail().trim().toLowerCase();
+		User user = userRepository.findByEmail(email)
+				.orElseThrow(() -> new InvalidCredentialsException("User not found"));
 		if (!Boolean.TRUE.equals(user.getEmailVerified())) {
-			log.warn("Login failed. Email not verified. Email={}", normalizedEmail);
 			throw new EmailNotVerifiedException("Please verify your email first.");
 		}
-		if (user.getAccountLockedUntil() != null && user.getAccountLockedUntil().isAfter(LocalDateTime.now())) {
-			log.warn("Login attempted on locked account. Email={}", normalizedEmail);
-			throw new InvalidCredentialsException("Account is locked. Try again later.");
+		EmailVerificationOtp latestOtp = otpRepository
+				.findTopByEmailAndOtpTypeOrderByCreatedAtDesc(email, OtpType.PASSWORD_RESET).orElse(null);
+		if (latestOtp != null && latestOtp.getLastSentAt() != null
+				&& latestOtp.getLastSentAt().plusMinutes(1).isAfter(LocalDateTime.now())) {
+			throw new InvalidOtpException("Please wait 1 minute before requesting another OTP.");
 		}
-		if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-			user.setFailedLoginAttempts(user.getFailedLoginAttempts() + 1);
-			log.warn("Invalid password attempt {} for Email={}", user.getFailedLoginAttempts(), normalizedEmail);
-			if (user.getFailedLoginAttempts() >= 5) {
-				user.setAccountLockedUntil(LocalDateTime.now().plusMinutes(30));
-				log.warn("User account locked for 30 minutes. Email={}", normalizedEmail);
+		String otp = OtpGeneratorUtil.generateOtp();
+		EmailVerificationOtp otpEntity = EmailVerificationOtp.builder().email(email).otp(otp)
+				.otpType(OtpType.PASSWORD_RESET).expiresAt(LocalDateTime.now().plusMinutes(5))
+				.lastSentAt(LocalDateTime.now()).used(false).build();
+		otpRepository.save(otpEntity);
+		emailService.sendOtpEmail(email, otp);
+		log.info("Password reset OTP sent successfully. Email={}", email);
+		return "Password reset OTP sent successfully";
+	}
+
+	@Override
+	@Transactional(noRollbackFor = InvalidOtpException.class)
+	public String resetPassword(ResetPasswordRequest request) {
+		String email = request.getEmail().trim().toLowerCase();
+		User user = userRepository.findByEmail(email)
+				.orElseThrow(() -> new InvalidCredentialsException("User not found"));
+		if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+			throw new InvalidCredentialsException("New password must be different from current password.");
+		}
+		EmailVerificationOtp otpRecord = otpRepository
+				.findTopByEmailAndOtpTypeOrderByCreatedAtDesc(email, OtpType.PASSWORD_RESET)
+				.orElseThrow(() -> new InvalidOtpException("Password reset OTP not found"));
+		if (Boolean.TRUE.equals(otpRecord.getLocked())) {
+			throw new InvalidOtpException("OTP locked. Request a new OTP.");
+		}
+		if (Boolean.TRUE.equals(otpRecord.getUsed())) {
+			throw new InvalidOtpException("OTP already used");
+		}
+		if (otpRecord.getExpiresAt().isBefore(LocalDateTime.now())) {
+			throw new OtpExpiredException("OTP expired");
+		}
+		if (!otpRecord.getOtp().equals(request.getOtp())) {
+			int attempts = otpRecord.getFailedAttempts() + 1;
+			otpRecord.setFailedAttempts(attempts);
+			if (attempts >= 5) {
+				otpRecord.setFailedAttempts(5);
+				otpRecord.setLocked(true);
 			}
-			userRepository.save(user);
-			throw new InvalidCredentialsException("Invalid email or password");
+			otpRepository.save(otpRecord);
+			throw new InvalidOtpException("Invalid OTP");
 		}
+		user.setPassword(passwordEncoder.encode(request.getNewPassword()));
 		user.setFailedLoginAttempts(0);
 		user.setAccountLockedUntil(null);
-		user.setLastLoginAt(LocalDateTime.now());
+		otpRecord.setUsed(true);
 		userRepository.save(user);
-		log.info("User logged in successfully. UserId={}, Email={}", user.getId(), user.getEmail());
-		return LoginResponse.builder().userId(user.getId()).email(user.getEmail()).role(user.getRole().name())
-				.message("Login Successful").build();
+		otpRepository.save(otpRecord);
+		return "Password reset successful";
 	}
 }

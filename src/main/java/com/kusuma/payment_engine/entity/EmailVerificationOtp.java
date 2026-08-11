@@ -2,6 +2,9 @@ package com.kusuma.payment_engine.entity;
 
 import java.time.LocalDateTime;
 
+import com.kusuma.payment_engine.enums.OtpType;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -42,4 +45,8 @@ public class EmailVerificationOtp extends BaseEntity {
     @Builder.Default
     @Column(nullable = false)
     private Boolean locked = false;
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private OtpType otpType;
 }
