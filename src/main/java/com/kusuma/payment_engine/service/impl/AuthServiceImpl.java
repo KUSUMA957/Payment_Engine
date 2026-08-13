@@ -28,6 +28,7 @@ import com.kusuma.payment_engine.exception.OtpExpiredException;
 import com.kusuma.payment_engine.exception.UserAlreadyExistsException;
 import com.kusuma.payment_engine.repository.EmailVerificationOtpRepository;
 import com.kusuma.payment_engine.repository.UserRepository;
+import com.kusuma.payment_engine.security.JwtUtil;
 import com.kusuma.payment_engine.service.AuthService;
 import com.kusuma.payment_engine.service.EmailService;
 import com.kusuma.payment_engine.util.OtpGeneratorUtil;
@@ -39,7 +40,7 @@ import lombok.RequiredArgsConstructor;
 public class AuthServiceImpl implements AuthService {
 
 	private static final Logger log = LoggerFactory.getLogger(AuthServiceImpl.class);
-
+	private final JwtUtil jwtUtil;
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final EmailVerificationOtpRepository otpRepository;
@@ -105,9 +106,10 @@ public class AuthServiceImpl implements AuthService {
 		user.setAccountLockedUntil(null);
 		user.setLastLoginAt(LocalDateTime.now());
 		userRepository.save(user);
+		String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
 		return LoginResponse.builder().userId(user.getId()).email(user.getEmail()).role(user.getRole().name())
-				.message("Login Successful").build();
-	}
+				.token(token).message("Login Successful").build();
+		}
 
 	@Override
 	public String resendOtp(ResendOtpRequest request) {
