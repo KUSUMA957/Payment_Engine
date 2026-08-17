@@ -60,7 +60,7 @@ public class AuthServiceImpl implements AuthService {
 		}
 		User user = User.builder().fullName(normalizedFullName).email(normalizedEmail)
 				.phoneNumber(normalizedPhoneNumber).password(passwordEncoder.encode(request.getPassword()))
-				.role(Role.CUSTOMER).status(UserStatus.ACTIVE).build();
+				.role(Role.CUSTOMER).status(UserStatus.ACTIVE).lastPasswordChangedAt(LocalDateTime.now()).build();
 		User savedUser = userRepository.save(user);
 		String otp = OtpGeneratorUtil.generateOtp();
 		EmailVerificationOtp otpEntity = EmailVerificationOtp.builder().email(savedUser.getEmail()).otp(otp)
@@ -109,7 +109,7 @@ public class AuthServiceImpl implements AuthService {
 		String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
 		return LoginResponse.builder().userId(user.getId()).email(user.getEmail()).role(user.getRole().name())
 				.token(token).message("Login Successful").build();
-		}
+	}
 
 	@Override
 	public String resendOtp(ResendOtpRequest request) {
@@ -231,6 +231,7 @@ public class AuthServiceImpl implements AuthService {
 			throw new InvalidOtpException("Invalid OTP");
 		}
 		user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+		user.setLastPasswordChangedAt(LocalDateTime.now());
 		user.setFailedLoginAttempts(0);
 		user.setAccountLockedUntil(null);
 		otpRecord.setUsed(true);

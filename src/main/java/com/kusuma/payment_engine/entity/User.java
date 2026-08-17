@@ -58,4 +58,7 @@ public class User extends BaseEntity {
     private Integer failedLoginAttempts = 0;
 
     private LocalDateTime accountLockedUntil;
+    
+    @Column(name = "last_password_changed_at")
+    private LocalDateTime lastPasswordChangedAt;
 }

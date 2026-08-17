@@ -60,6 +60,44 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
 	}
 
+	@ExceptionHandler(UserNotFoundException.class)
+	public ResponseEntity<ErrorResponse> handleUserNotFound(UserNotFoundException ex) {
+		ErrorResponse response = new ErrorResponse(LocalDateTime.now(), HttpStatus.NOT_FOUND.value(), ex.getMessage());
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+	}
+
+	@ExceptionHandler(NoChangesDetectedException.class)
+	public ResponseEntity<ErrorResponse> handleNoChangesDetected(NoChangesDetectedException ex) {
+		ErrorResponse response = new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(),
+				ex.getMessage());
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+	}
+
+	@ExceptionHandler(PhoneNumberAlreadyExistsException.class)
+	public ResponseEntity<ErrorResponse> handlePhoneNumberAlreadyExists(PhoneNumberAlreadyExistsException ex) {
+		ErrorResponse response = new ErrorResponse(LocalDateTime.now(), HttpStatus.CONFLICT.value(), ex.getMessage());
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+	}
+
+	@ExceptionHandler(InvalidCurrentPasswordException.class)
+	public ResponseEntity<ErrorResponse> handleInvalidCurrentPassword(InvalidCurrentPasswordException ex) {
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
+	}
+
+	@ExceptionHandler(PasswordMismatchException.class)
+	public ResponseEntity<ErrorResponse> handlePasswordMismatch(PasswordMismatchException ex) {
+
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
+	}
+
+	@ExceptionHandler(SamePasswordException.class)
+	public ResponseEntity<ErrorResponse> handleSamePassword(SamePasswordException ex) {
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
+	}
+
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
 		Map<String, String> errors = new HashMap<>();
