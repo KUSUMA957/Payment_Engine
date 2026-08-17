@@ -98,6 +98,36 @@ public class GlobalExceptionHandler {
 				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
 	}
 
+	@ExceptionHandler(SelfAdminActionException.class)
+	public ResponseEntity<ErrorResponse> handleSelfAdminAction(SelfAdminActionException ex) {
+		return ResponseEntity.badRequest()
+				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
+	}
+
+	@ExceptionHandler(UserAlreadyLockedException.class)
+	public ResponseEntity<ErrorResponse> handleUserAlreadyLocked(UserAlreadyLockedException ex) {
+		return ResponseEntity.badRequest()
+				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
+	}
+
+	@ExceptionHandler(UserNotLockedException.class)
+	public ResponseEntity<ErrorResponse> handleUserNotLocked(UserNotLockedException ex) {
+		return ResponseEntity.badRequest()
+				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
+	}
+	
+	@ExceptionHandler(UserAlreadyDisabledException.class)
+	public ResponseEntity<ErrorResponse> handleUserAlreadyDisabled(UserAlreadyDisabledException ex) {
+		return ResponseEntity.badRequest()
+				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
+	}
+
+	@ExceptionHandler(UserAlreadyEnabledException.class)
+	public ResponseEntity<ErrorResponse> handleUserAlreadyEnabled(UserAlreadyEnabledException ex) {
+		return ResponseEntity.badRequest()
+				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
+	}
+
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
 		Map<String, String> errors = new HashMap<>();

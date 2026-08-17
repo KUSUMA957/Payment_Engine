@@ -11,6 +11,8 @@ import com.kusuma.payment_engine.dto.request.ChangePasswordRequest;
 import com.kusuma.payment_engine.dto.request.UpdateUserProfileRequest;
 import com.kusuma.payment_engine.dto.response.UserProfileResponse;
 import com.kusuma.payment_engine.entity.User;
+import com.kusuma.payment_engine.enums.UserStatus;
+import com.kusuma.payment_engine.exception.InvalidCredentialsException;
 import com.kusuma.payment_engine.exception.InvalidCurrentPasswordException;
 import com.kusuma.payment_engine.exception.NoChangesDetectedException;
 import com.kusuma.payment_engine.exception.PasswordMismatchException;
@@ -33,6 +35,7 @@ public class UserServiceImpl implements UserService {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		String email = authentication.getName();
 		User user = userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException("User not found"));
+		validateAccountStatus(user);
 		return UserProfileResponse.builder().id(user.getId()).fullName(user.getFullName()).email(user.getEmail())
 				.phoneNumber(user.getPhoneNumber()).role(user.getRole()).emailVerified(user.getEmailVerified()).build();
 	}
@@ -42,6 +45,7 @@ public class UserServiceImpl implements UserService {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		String email = authentication.getName();
 		User user = userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException("User not found"));
+		validateAccountStatus(user);
 		String fullName = request.fullName().trim();
 		String phoneNumber = request.phoneNumber().trim();
 		boolean sameName = user.getFullName().equals(fullName);
@@ -66,6 +70,7 @@ public class UserServiceImpl implements UserService {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		String email = authentication.getName();
 		User user = userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException("User not found"));
+		validateAccountStatus(user);
 		if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
 			throw new InvalidCurrentPasswordException("Current password is incorrect");
 		}
@@ -78,6 +83,15 @@ public class UserServiceImpl implements UserService {
 		user.setPassword(passwordEncoder.encode(request.newPassword()));
 		user.setLastPasswordChangedAt(LocalDateTime.now());
 		userRepository.save(user);
+	}
+
+	private void validateAccountStatus(User user) {
+		if (user.getStatus() == UserStatus.LOCKED) {
+			throw new InvalidCredentialsException("Account is locked by administrator.");
+		}
+		if (user.getStatus() == UserStatus.INACTIVE) {
+			throw new InvalidCredentialsException("Account is inactive.");
+		}
 	}
 
 }
