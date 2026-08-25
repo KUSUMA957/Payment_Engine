@@ -115,7 +115,7 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.badRequest()
 				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
 	}
-	
+
 	@ExceptionHandler(UserAlreadyDisabledException.class)
 	public ResponseEntity<ErrorResponse> handleUserAlreadyDisabled(UserAlreadyDisabledException ex) {
 		return ResponseEntity.badRequest()
@@ -128,6 +128,43 @@ public class GlobalExceptionHandler {
 				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
 	}
 
+	@ExceptionHandler(AccountAlreadyExistsException.class)
+	public ResponseEntity<ErrorResponse> handleAccountAlreadyExists(AccountAlreadyExistsException ex) {
+		ErrorResponse response = new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(),
+				ex.getMessage());
+		return ResponseEntity.badRequest().body(response);
+	}
+
+	@ExceptionHandler(AccountNotFoundException.class)
+	public ResponseEntity<ErrorResponse> handleAccountNotFound(AccountNotFoundException ex) {
+		return ResponseEntity.status(HttpStatus.NOT_FOUND)
+				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.NOT_FOUND.value(), ex.getMessage()));
+	}
+
+	@ExceptionHandler(AccountAlreadyFrozenException.class)
+	public ResponseEntity<ErrorResponse> handleAccountAlreadyFrozen(AccountAlreadyFrozenException ex) {
+		return ResponseEntity.badRequest()
+				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
+	}
+	
+	@ExceptionHandler(AccountNotFrozenException.class)
+	public ResponseEntity<ErrorResponse> handleAccountNotFrozen(AccountNotFrozenException ex) {
+		return ResponseEntity.badRequest()
+				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
+	}
+
+	@ExceptionHandler(AccountAlreadyClosedException.class)
+	public ResponseEntity<ErrorResponse> handleAccountAlreadyClosed(AccountAlreadyClosedException ex) {
+		return ResponseEntity.badRequest()
+				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
+	}
+	
+	@ExceptionHandler(AccountBalanceNotZeroException.class)
+	public ResponseEntity<ErrorResponse> handleAccountBalanceNotZero(AccountBalanceNotZeroException ex) {
+		return ResponseEntity.badRequest()
+				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
+	}
+	
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
 		Map<String, String> errors = new HashMap<>();

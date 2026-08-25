@@ -31,6 +31,7 @@ import com.kusuma.payment_engine.repository.UserRepository;
 import com.kusuma.payment_engine.security.JwtUtil;
 import com.kusuma.payment_engine.service.AuthService;
 import com.kusuma.payment_engine.service.EmailService;
+import com.kusuma.payment_engine.util.AccountValidationUtil;
 import com.kusuma.payment_engine.util.OtpGeneratorUtil;
 
 import lombok.RequiredArgsConstructor;
@@ -82,7 +83,8 @@ public class AuthServiceImpl implements AuthService {
 		if (!Boolean.TRUE.equals(user.getEmailVerified())) {
 			throw new EmailNotVerifiedException("Please verify your email first.");
 		}
-		validateAccountStatus(user);
+		//validateAccountStatus(user);
+		AccountValidationUtil.validateUserStatus(user);
 		if (user.getAccountLockedUntil() != null && !user.getAccountLockedUntil().isAfter(LocalDateTime.now())) {
 			user.setFailedLoginAttempts(0);
 			user.setAccountLockedUntil(null);
@@ -116,7 +118,8 @@ public class AuthServiceImpl implements AuthService {
 	public String resendOtp(ResendOtpRequest request) {
 		String email = request.getEmail().trim().toLowerCase();
 		User user = userRepository.findByEmail(email).orElseThrow(() -> new InvalidOtpException("User not found"));
-		validateAccountStatus(user);
+		//validateAccountStatus(user);
+		AccountValidationUtil.validateUserStatus(user);
 		if (Boolean.TRUE.equals(user.getEmailVerified())) {
 			throw new InvalidOtpException("Email already verified.");
 		}
@@ -169,7 +172,8 @@ public class AuthServiceImpl implements AuthService {
 		}
 		User user = userRepository.findByEmail(normalizedEmail)
 				.orElseThrow(() -> new InvalidOtpException("User not found"));
-		validateAccountStatus(user);
+		//validateAccountStatus(user);
+		AccountValidationUtil.validateUserStatus(user);
 		user.setEmailVerified(true);
 		otpRecord.setUsed(true);
 		userRepository.save(user);
@@ -183,7 +187,8 @@ public class AuthServiceImpl implements AuthService {
 		String email = request.getEmail().trim().toLowerCase();
 		User user = userRepository.findByEmail(email)
 				.orElseThrow(() -> new InvalidCredentialsException("User not found"));
-		validateAccountStatus(user);
+		//validateAccountStatus(user);
+		AccountValidationUtil.validateUserStatus(user);
 		if (!Boolean.TRUE.equals(user.getEmailVerified())) {
 			throw new EmailNotVerifiedException("Please verify your email first.");
 		}
@@ -209,7 +214,8 @@ public class AuthServiceImpl implements AuthService {
 		String email = request.getEmail().trim().toLowerCase();
 		User user = userRepository.findByEmail(email)
 				.orElseThrow(() -> new InvalidCredentialsException("User not found"));
-		validateAccountStatus(user);
+		//validateAccountStatus(user);
+		AccountValidationUtil.validateUserStatus(user);
 		if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
 			throw new InvalidCredentialsException("New password must be different from current password.");
 		}
@@ -245,12 +251,12 @@ public class AuthServiceImpl implements AuthService {
 		return "Password reset successful";
 	}
 
-	private void validateAccountStatus(User user) {
-		if (user.getStatus() == UserStatus.LOCKED) {
-			throw new InvalidCredentialsException("Account is locked by administrator.");
-		}
-		if (user.getStatus() == UserStatus.INACTIVE) {
-			throw new InvalidCredentialsException("Account is inactive.");
-		}
-	}
+//	private void validateAccountStatus(User user) {
+//		if (user.getStatus() == UserStatus.LOCKED) {
+//			throw new InvalidCredentialsException("Account is locked by administrator.");
+//		}
+//		if (user.getStatus() == UserStatus.INACTIVE) {
+//			throw new InvalidCredentialsException("Account is inactive.");
+//		}
+//	}
 }

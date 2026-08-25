@@ -11,8 +11,6 @@ import com.kusuma.payment_engine.dto.request.ChangePasswordRequest;
 import com.kusuma.payment_engine.dto.request.UpdateUserProfileRequest;
 import com.kusuma.payment_engine.dto.response.UserProfileResponse;
 import com.kusuma.payment_engine.entity.User;
-import com.kusuma.payment_engine.enums.UserStatus;
-import com.kusuma.payment_engine.exception.InvalidCredentialsException;
 import com.kusuma.payment_engine.exception.InvalidCurrentPasswordException;
 import com.kusuma.payment_engine.exception.NoChangesDetectedException;
 import com.kusuma.payment_engine.exception.PasswordMismatchException;
@@ -21,6 +19,7 @@ import com.kusuma.payment_engine.exception.SamePasswordException;
 import com.kusuma.payment_engine.exception.UserNotFoundException;
 import com.kusuma.payment_engine.repository.UserRepository;
 import com.kusuma.payment_engine.service.UserService;
+import com.kusuma.payment_engine.util.AccountValidationUtil;
 
 import lombok.RequiredArgsConstructor;
 
@@ -35,7 +34,8 @@ public class UserServiceImpl implements UserService {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		String email = authentication.getName();
 		User user = userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException("User not found"));
-		validateAccountStatus(user);
+		//validateAccountStatus(user);
+		AccountValidationUtil.validateUserStatus(user);
 		return UserProfileResponse.builder().id(user.getId()).fullName(user.getFullName()).email(user.getEmail())
 				.phoneNumber(user.getPhoneNumber()).role(user.getRole()).emailVerified(user.getEmailVerified()).build();
 	}
@@ -45,7 +45,8 @@ public class UserServiceImpl implements UserService {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		String email = authentication.getName();
 		User user = userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException("User not found"));
-		validateAccountStatus(user);
+		//validateAccountStatus(user);
+		AccountValidationUtil.validateUserStatus(user);
 		String fullName = request.fullName().trim();
 		String phoneNumber = request.phoneNumber().trim();
 		boolean sameName = user.getFullName().equals(fullName);
@@ -70,7 +71,8 @@ public class UserServiceImpl implements UserService {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		String email = authentication.getName();
 		User user = userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException("User not found"));
-		validateAccountStatus(user);
+		//validateAccountStatus(user);
+		AccountValidationUtil.validateUserStatus(user);
 		if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
 			throw new InvalidCurrentPasswordException("Current password is incorrect");
 		}
@@ -85,13 +87,13 @@ public class UserServiceImpl implements UserService {
 		userRepository.save(user);
 	}
 
-	private void validateAccountStatus(User user) {
-		if (user.getStatus() == UserStatus.LOCKED) {
-			throw new InvalidCredentialsException("Account is locked by administrator.");
-		}
-		if (user.getStatus() == UserStatus.INACTIVE) {
-			throw new InvalidCredentialsException("Account is inactive.");
-		}
-	}
+//	private void validateAccountStatus(User user) {
+//		if (user.getStatus() == UserStatus.LOCKED) {
+//			throw new InvalidCredentialsException("Account is locked by administrator.");
+//		}
+//		if (user.getStatus() == UserStatus.INACTIVE) {
+//			throw new InvalidCredentialsException("Account is inactive.");
+//		}
+//	}
 
 }
