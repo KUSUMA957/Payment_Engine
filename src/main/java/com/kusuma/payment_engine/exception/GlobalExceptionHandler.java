@@ -146,7 +146,7 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.badRequest()
 				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
 	}
-	
+
 	@ExceptionHandler(AccountNotFrozenException.class)
 	public ResponseEntity<ErrorResponse> handleAccountNotFrozen(AccountNotFrozenException ex) {
 		return ResponseEntity.badRequest()
@@ -158,13 +158,37 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.badRequest()
 				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
 	}
-	
+
 	@ExceptionHandler(AccountBalanceNotZeroException.class)
 	public ResponseEntity<ErrorResponse> handleAccountBalanceNotZero(AccountBalanceNotZeroException ex) {
 		return ResponseEntity.badRequest()
 				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
 	}
-	
+
+	@ExceptionHandler(InsufficientBalanceException.class)
+	public ResponseEntity<ErrorResponse> handleInsufficientBalance(InsufficientBalanceException ex) {
+		return ResponseEntity.badRequest()
+				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
+	}
+
+	@ExceptionHandler(InvalidTransactionException.class)
+	public ResponseEntity<ErrorResponse> handleInvalidTransaction(InvalidTransactionException ex) {
+		return ResponseEntity.badRequest()
+				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.BAD_REQUEST.value(), ex.getMessage()));
+	}
+
+	@ExceptionHandler(TransactionNotFoundException.class)
+	public ResponseEntity<ErrorResponse> handleTransactionNotFound(TransactionNotFoundException ex) {
+		return ResponseEntity.status(HttpStatus.NOT_FOUND)
+				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.NOT_FOUND.value(), ex.getMessage()));
+	}
+
+	@ExceptionHandler(UnauthorizedTransactionAccessException.class)
+	public ResponseEntity<ErrorResponse> handleUnauthorizedTransaction(UnauthorizedTransactionAccessException ex) {
+		return ResponseEntity.status(HttpStatus.FORBIDDEN)
+				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.FORBIDDEN.value(), ex.getMessage()));
+	}
+
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
 		Map<String, String> errors = new HashMap<>();
