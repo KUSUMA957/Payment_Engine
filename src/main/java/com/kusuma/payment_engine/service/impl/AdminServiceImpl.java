@@ -1,6 +1,5 @@
 package com.kusuma.payment_engine.service.impl;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -33,76 +32,79 @@ public class AdminServiceImpl implements AdminService {
 
 	@Override
 	public AdminUserResponse getUserById(Long userId) {
-		User user = userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException("User not found"));
-		return mapToResponse(user);
-	}
-
-	private AdminUserResponse mapToResponse(User user) {
-		return AdminUserResponse.builder().id(user.getId()).fullName(user.getFullName()).email(user.getEmail())
-				.phoneNumber(user.getPhoneNumber()).role(user.getRole()).status(user.getStatus())
-				.emailVerified(user.getEmailVerified()).build();
+		return mapToResponse(getUserByIdOrThrow(userId));
 	}
 
 	@Override
 	public void lockUser(Long userId) {
-		User user = userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException("User not found"));
-		String currentAdmin = getCurrentAdminEmail();
-		if (user.getEmail().equals(currentAdmin)) {
-			throw new SelfAdminActionException("Admin cannot lock own account");
-		}
+		User user = getUserByIdOrThrow(userId);
+		validateNotSelfAction(user);
 		if (user.getStatus() == UserStatus.INACTIVE) {
 			throw new UserAlreadyDisabledException("Cannot lock a disabled account");
 		}
 		if (user.getStatus() == UserStatus.LOCKED) {
 			throw new UserAlreadyLockedException("User already locked");
 		}
-		user.setStatus(UserStatus.LOCKED);
-		user.setLastPasswordChangedAt(LocalDateTime.now());
-		userRepository.save(user);
+		updateUserStatus(user, UserStatus.LOCKED);
 	}
 
 	@Override
 	public void unlockUser(Long userId) {
-		User user = userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException("User not found"));
+		User user = getUserByIdOrThrow(userId);
 		if (user.getStatus() != UserStatus.LOCKED) {
 			throw new UserNotLockedException("User is not locked");
 		}
 		user.setStatus(UserStatus.ACTIVE);
 		user.setFailedLoginAttempts(0);
 		user.setAccountLockedUntil(null);
-		user.setLastPasswordChangedAt(LocalDateTime.now());
 		userRepository.save(user);
 	}
 
 	@Override
 	public void disableUser(Long userId) {
-		User user = userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException("User not found"));
-		String currentAdmin = getCurrentAdminEmail();
-		if (user.getEmail().equals(currentAdmin)) {
-			throw new SelfAdminActionException("Admin cannot disable own account");
-		}
+		User user = getUserByIdOrThrow(userId);
+		validateNotSelfAction(user);
 		if (user.getStatus() == UserStatus.INACTIVE) {
 			throw new UserAlreadyDisabledException("User already disabled");
 		}
-		user.setStatus(UserStatus.INACTIVE);
-		user.setLastPasswordChangedAt(LocalDateTime.now());
-		userRepository.save(user);
+		updateUserStatus(user, UserStatus.INACTIVE);
 	}
 
 	@Override
 	public void enableUser(Long userId) {
-		User user = userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException("User not found"));
+		User user = getUserByIdOrThrow(userId);
 		if (user.getStatus() == UserStatus.ACTIVE) {
 			throw new UserAlreadyEnabledException("User already active");
 		}
 		user.setStatus(UserStatus.ACTIVE);
 		user.setFailedLoginAttempts(0);
 		user.setAccountLockedUntil(null);
-		user.setLastPasswordChangedAt(LocalDateTime.now());
 		userRepository.save(user);
+	}
+
+	private User getUserByIdOrThrow(Long userId) {
+		return userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException("User not found"));
+	}
+
+	private void validateNotSelfAction(User user) {
+		String currentAdmin = getCurrentAdminEmail();
+		if (user.getEmail().equalsIgnoreCase(currentAdmin)) {
+			throw new SelfAdminActionException("Admin cannot perform action on own account");
+		}
 	}
 
 	private String getCurrentAdminEmail() {
 		return SecurityContextHolder.getContext().getAuthentication().getName();
+	}
+
+	private void updateUserStatus(User user, UserStatus status) {
+		user.setStatus(status);
+		userRepository.save(user);
+	}
+
+	private AdminUserResponse mapToResponse(User user) {
+		return AdminUserResponse.builder().id(user.getId()).fullName(user.getFullName()).email(user.getEmail())
+				.phoneNumber(user.getPhoneNumber()).role(user.getRole()).status(user.getStatus())
+				.emailVerified(user.getEmailVerified()).build();
 	}
 }
