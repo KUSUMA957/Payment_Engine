@@ -26,28 +26,20 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
+
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
 
 	@Override
 	public UserProfileResponse getCurrentUser() {
-		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		String email = authentication.getName();
-		User user = userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException("User not found"));
-		//validateAccountStatus(user);
-		AccountValidationUtil.validateUserStatus(user);
-		return UserProfileResponse.builder().id(user.getId()).fullName(user.getFullName()).email(user.getEmail())
-				.phoneNumber(user.getPhoneNumber()).role(user.getRole()).emailVerified(user.getEmailVerified()).build();
+		User user = getAuthenticatedUser();
+		return mapToUserProfileResponse(user);
 	}
 
 	@Override
 	public UserProfileResponse updateCurrentUser(UpdateUserProfileRequest request) {
-		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		String email = authentication.getName();
-		User user = userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException("User not found"));
-		//validateAccountStatus(user);
-		AccountValidationUtil.validateUserStatus(user);
-		String fullName = request.fullName().trim();
+		User user = getAuthenticatedUser();
+		String fullName = normalizeFullName(request.fullName());
 		String phoneNumber = request.phoneNumber().trim();
 		boolean sameName = user.getFullName().equals(fullName);
 		boolean samePhone = user.getPhoneNumber().equals(phoneNumber);
@@ -61,18 +53,12 @@ public class UserServiceImpl implements UserService {
 		user.setFullName(fullName);
 		user.setPhoneNumber(phoneNumber);
 		User updatedUser = userRepository.save(user);
-		return UserProfileResponse.builder().id(updatedUser.getId()).fullName(updatedUser.getFullName())
-				.email(updatedUser.getEmail()).phoneNumber(updatedUser.getPhoneNumber()).role(updatedUser.getRole())
-				.build();
+		return mapToUserProfileResponse(updatedUser);
 	}
 
 	@Override
 	public void changePassword(ChangePasswordRequest request) {
-		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		String email = authentication.getName();
-		User user = userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException("User not found"));
-		//validateAccountStatus(user);
-		AccountValidationUtil.validateUserStatus(user);
+		User user = getAuthenticatedUser();
 		if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
 			throw new InvalidCurrentPasswordException("Current password is incorrect");
 		}
@@ -84,16 +70,25 @@ public class UserServiceImpl implements UserService {
 		}
 		user.setPassword(passwordEncoder.encode(request.newPassword()));
 		user.setLastPasswordChangedAt(LocalDateTime.now());
+		user.setFailedLoginAttempts(0);
+		user.setAccountLockedUntil(null);
 		userRepository.save(user);
 	}
 
-//	private void validateAccountStatus(User user) {
-//		if (user.getStatus() == UserStatus.LOCKED) {
-//			throw new InvalidCredentialsException("Account is locked by administrator.");
-//		}
-//		if (user.getStatus() == UserStatus.INACTIVE) {
-//			throw new InvalidCredentialsException("Account is inactive.");
-//		}
-//	}
+	private User getAuthenticatedUser() {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		String email = authentication.getName();
+		User user = userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException("User not found"));
+		AccountValidationUtil.validateUserStatus(user);
+		return user;
+	}
 
+	private UserProfileResponse mapToUserProfileResponse(User user) {
+		return UserProfileResponse.builder().id(user.getId()).fullName(user.getFullName()).email(user.getEmail())
+				.phoneNumber(user.getPhoneNumber()).role(user.getRole()).emailVerified(user.getEmailVerified()).build();
+	}
+
+	private String normalizeFullName(String fullName) {
+		return fullName.trim().replaceAll("\\s+", " ");
+	}
 }
