@@ -31,4 +31,18 @@ public final class AccountValidationUtil {
 			throw new InvalidCredentialsException("Account is closed.");
 		}
 	}
+
+	public static void validateUserAndAccountForTransactions(User user, Account account) {
+		validateUserStatus(user);
+		validateAccountForTransactions(account);
+	}
+
+	public static void validateUserStateWithoutEmailVerification(User user) {
+		if (user.getStatus() == UserStatus.LOCKED) {
+			throw new InvalidCredentialsException("Account is locked by administrator.");
+		}
+		if (user.getStatus() == UserStatus.INACTIVE) {
+			throw new InvalidCredentialsException("Account is inactive.");
+		}
+	}
 }

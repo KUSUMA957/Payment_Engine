@@ -2,6 +2,7 @@ package com.kusuma.payment_engine.entity;
 
 import java.time.LocalDateTime;
 
+
 import com.kusuma.payment_engine.enums.Role;
 import com.kusuma.payment_engine.enums.UserStatus;
 
@@ -9,8 +10,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

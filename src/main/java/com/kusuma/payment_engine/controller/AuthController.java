@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.kusuma.payment_engine.dto.request.ChangePasswordRequest;
 import com.kusuma.payment_engine.dto.request.ForgotPasswordRequest;
 import com.kusuma.payment_engine.dto.request.LoginRequest;
 import com.kusuma.payment_engine.dto.request.RegisterRequest;
