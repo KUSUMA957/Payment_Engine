@@ -11,10 +11,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.kusuma.payment_engine.constants.SystemConstants;
+import com.kusuma.payment_engine.dto.request.BeneficiaryTransferRequest;
 import com.kusuma.payment_engine.dto.request.TransactionAmountRequest;
 import com.kusuma.payment_engine.dto.request.TransferRequest;
 import com.kusuma.payment_engine.dto.response.TransactionResponse;
 import com.kusuma.payment_engine.entity.Account;
+import com.kusuma.payment_engine.entity.Beneficiary;
 import com.kusuma.payment_engine.entity.Transaction;
 import com.kusuma.payment_engine.entity.User;
 import com.kusuma.payment_engine.enums.AuditAction;
@@ -24,6 +26,7 @@ import com.kusuma.payment_engine.enums.Role;
 import com.kusuma.payment_engine.enums.TransactionStatus;
 import com.kusuma.payment_engine.enums.TransactionType;
 import com.kusuma.payment_engine.exception.AccountNotFoundException;
+import com.kusuma.payment_engine.exception.BeneficiaryNotFoundException;
 import com.kusuma.payment_engine.exception.ConcurrentTransactionException;
 import com.kusuma.payment_engine.exception.InsufficientBalanceException;
 import com.kusuma.payment_engine.exception.InvalidTransactionException;
@@ -31,6 +34,7 @@ import com.kusuma.payment_engine.exception.TransactionNotFoundException;
 import com.kusuma.payment_engine.exception.UnauthorizedTransactionAccessException;
 import com.kusuma.payment_engine.exception.UserNotFoundException;
 import com.kusuma.payment_engine.repository.AccountRepository;
+import com.kusuma.payment_engine.repository.BeneficiaryRepository;
 import com.kusuma.payment_engine.repository.TransactionRepository;
 import com.kusuma.payment_engine.repository.UserRepository;
 import com.kusuma.payment_engine.service.AuditLogService;
@@ -50,6 +54,7 @@ public class TransactionServiceImpl implements TransactionService {
 	private final UserRepository userRepository;
 	private final AuditLogService auditLogService;
 	private final NotificationService notificationService;
+	private final BeneficiaryRepository beneficiaryRepository;
 
 	@Override
 	@Transactional
@@ -138,6 +143,58 @@ public class TransactionServiceImpl implements TransactionService {
 		Account account = getUserAccount(user);
 		return transactionRepository.findBySenderAccountOrReceiverAccount(account, account).stream()
 				.map(this::mapToResponse).toList();
+	}
+
+	@Override
+	@Transactional
+	public TransactionResponse transferToBeneficiary(BeneficiaryTransferRequest request) {
+
+		try {
+
+			User user = getAuthenticatedUser();
+
+			Account sender = getUserAccount(user);
+
+			Beneficiary beneficiary = beneficiaryRepository.findByIdAndOwnerUser(request.beneficiaryId(), user)
+					.orElseThrow(() -> new BeneficiaryNotFoundException("Beneficiary not found"));
+
+			Account receiver = beneficiary.getBeneficiaryAccount();
+
+			AccountValidationUtil.validateUserAndAccountForTransactions(user, sender);
+
+			AccountValidationUtil.validateAccountForTransactions(receiver);
+
+			validateAmount(request.amount());
+
+			if (sender.getBalance().compareTo(request.amount()) < 0) {
+
+				throw new InsufficientBalanceException("Insufficient balance");
+			}
+
+			sender.setBalance(sender.getBalance().subtract(request.amount()));
+
+			receiver.setBalance(receiver.getBalance().add(request.amount()));
+
+			accountRepository.save(sender);
+			accountRepository.save(receiver);
+
+			Transaction transaction = createTransaction(sender, receiver, request.amount(), sender.getCurrency(),
+					TransactionType.TRANSFER, request.description());
+
+			auditLogService.log(user.getEmail(), AuditAction.TRANSFER, AuditEntityType.TRANSACTION, transaction.getId(),
+					"Transferred " + request.amount() + " to beneficiary " + beneficiary.getNickname() + " ("
+							+ receiver.getAccountNumber() + ")");
+
+			notificationService.createNotification(user, "Transfer Successful",
+					"₹" + request.amount() + " transferred to " + beneficiary.getNickname(),
+					NotificationType.TRANSACTION, true);
+
+			return mapToResponse(transaction);
+
+		} catch (ObjectOptimisticLockingFailureException ex) {
+
+			throw new ConcurrentTransactionException("Account was modified by another transaction. Please retry.");
+		}
 	}
 
 	@Override

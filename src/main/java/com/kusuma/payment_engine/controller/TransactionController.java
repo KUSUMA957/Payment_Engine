@@ -2,7 +2,6 @@ package com.kusuma.payment_engine.controller;
 
 import java.util.List;
 
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -11,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.kusuma.payment_engine.dto.request.BeneficiaryTransferRequest;
 import com.kusuma.payment_engine.dto.request.TransactionAmountRequest;
 import com.kusuma.payment_engine.dto.request.TransferRequest;
 import com.kusuma.payment_engine.dto.response.TransactionResponse;
@@ -49,5 +49,11 @@ public class TransactionController {
 	@PostMapping("/withdraw")
 	public ResponseEntity<TransactionResponse> withdraw(@Valid @RequestBody TransactionAmountRequest request) {
 		return ResponseEntity.ok(transactionService.withdraw(request));
+	}
+
+	@PostMapping("/beneficiary-transfer")
+	public ResponseEntity<TransactionResponse> transferToBeneficiary(
+			@Valid @RequestBody BeneficiaryTransferRequest request) {
+		return ResponseEntity.ok(transactionService.transferToBeneficiary(request));
 	}
 }
