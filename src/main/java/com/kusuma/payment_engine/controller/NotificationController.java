@@ -42,4 +42,9 @@ public class NotificationController {
 		notificationService.markAllAsRead();
 		return ResponseEntity.ok("All notifications marked as read");
 	}
+
+	@GetMapping("/unread-count")
+	public long getUnreadCount() {
+		return notificationService.getUnreadNotificationCount();
+	}
 }

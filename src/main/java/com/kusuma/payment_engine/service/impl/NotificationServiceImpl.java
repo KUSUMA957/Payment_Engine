@@ -71,6 +71,12 @@ public class NotificationServiceImpl implements NotificationService {
 		notificationRepository.saveAll(notifications);
 	}
 
+	@Override
+	public long getUnreadNotificationCount() {
+		User user = getAuthenticatedUser();
+		return notificationRepository.countByUserAndIsReadFalse(user);
+	}
+
 	private User getAuthenticatedUser() {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		return userRepository.findByEmail(authentication.getName())
