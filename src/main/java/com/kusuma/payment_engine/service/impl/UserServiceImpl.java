@@ -11,6 +11,8 @@ import com.kusuma.payment_engine.dto.request.ChangePasswordRequest;
 import com.kusuma.payment_engine.dto.request.UpdateUserProfileRequest;
 import com.kusuma.payment_engine.dto.response.UserProfileResponse;
 import com.kusuma.payment_engine.entity.User;
+import com.kusuma.payment_engine.enums.AuditAction;
+import com.kusuma.payment_engine.enums.AuditEntityType;
 import com.kusuma.payment_engine.exception.InvalidCurrentPasswordException;
 import com.kusuma.payment_engine.exception.NoChangesDetectedException;
 import com.kusuma.payment_engine.exception.PasswordMismatchException;
@@ -18,6 +20,7 @@ import com.kusuma.payment_engine.exception.PhoneNumberAlreadyExistsException;
 import com.kusuma.payment_engine.exception.SamePasswordException;
 import com.kusuma.payment_engine.exception.UserNotFoundException;
 import com.kusuma.payment_engine.repository.UserRepository;
+import com.kusuma.payment_engine.service.AuditLogService;
 import com.kusuma.payment_engine.service.UserService;
 import com.kusuma.payment_engine.util.AccountValidationUtil;
 
@@ -29,6 +32,7 @@ public class UserServiceImpl implements UserService {
 
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
+	private final AuditLogService auditLogService;
 
 	@Override
 	public UserProfileResponse getCurrentUser() {
@@ -53,6 +57,8 @@ public class UserServiceImpl implements UserService {
 		user.setFullName(fullName);
 		user.setPhoneNumber(phoneNumber);
 		User updatedUser = userRepository.save(user);
+		auditLogService.log(user.getEmail(), AuditAction.UPDATE_PROFILE, AuditEntityType.USER, user.getId(),
+				"Profile updated");
 		return mapToUserProfileResponse(updatedUser);
 	}
 
@@ -73,6 +79,8 @@ public class UserServiceImpl implements UserService {
 		user.setFailedLoginAttempts(0);
 		user.setAccountLockedUntil(null);
 		userRepository.save(user);
+		auditLogService.log(user.getEmail(), AuditAction.CHANGE_PASSWORD, AuditEntityType.USER, user.getId(),
+				"Password changed");
 	}
 
 	private User getAuthenticatedUser() {

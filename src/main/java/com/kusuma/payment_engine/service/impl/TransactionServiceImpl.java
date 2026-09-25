@@ -16,6 +16,8 @@ import com.kusuma.payment_engine.dto.response.TransactionResponse;
 import com.kusuma.payment_engine.entity.Account;
 import com.kusuma.payment_engine.entity.Transaction;
 import com.kusuma.payment_engine.entity.User;
+import com.kusuma.payment_engine.enums.AuditAction;
+import com.kusuma.payment_engine.enums.AuditEntityType;
 import com.kusuma.payment_engine.enums.Role;
 import com.kusuma.payment_engine.enums.TransactionStatus;
 import com.kusuma.payment_engine.enums.TransactionType;
@@ -28,6 +30,7 @@ import com.kusuma.payment_engine.exception.UserNotFoundException;
 import com.kusuma.payment_engine.repository.AccountRepository;
 import com.kusuma.payment_engine.repository.TransactionRepository;
 import com.kusuma.payment_engine.repository.UserRepository;
+import com.kusuma.payment_engine.service.AuditLogService;
 import com.kusuma.payment_engine.service.TransactionService;
 import com.kusuma.payment_engine.util.AccountValidationUtil;
 import com.kusuma.payment_engine.util.TransactionReferenceUtil;
@@ -41,6 +44,7 @@ public class TransactionServiceImpl implements TransactionService {
 	private final TransactionRepository transactionRepository;
 	private final AccountRepository accountRepository;
 	private final UserRepository userRepository;
+	private final AuditLogService auditLogService;
 
 	@Override
 	@Transactional
@@ -64,6 +68,8 @@ public class TransactionServiceImpl implements TransactionService {
 		accountRepository.save(receiver);
 		Transaction transaction = createTransaction(sender, receiver, request.amount(), sender.getCurrency(),
 				TransactionType.TRANSFER, request.description());
+		auditLogService.log(user.getEmail(), AuditAction.TRANSFER, AuditEntityType.TRANSACTION, transaction.getId(),
+				"Transferred " + request.amount() + " to account " + receiver.getAccountNumber());
 		return mapToResponse(transaction);
 	}
 
@@ -78,6 +84,8 @@ public class TransactionServiceImpl implements TransactionService {
 		accountRepository.save(account);
 		Transaction transaction = createTransaction(null, account, request.amount(), account.getCurrency(),
 				TransactionType.DEPOSIT, request.description());
+		auditLogService.log(user.getEmail(), AuditAction.DEPOSIT, AuditEntityType.TRANSACTION, transaction.getId(),
+				"Deposited " + request.amount());
 		return mapToResponse(transaction);
 	}
 
@@ -95,6 +103,8 @@ public class TransactionServiceImpl implements TransactionService {
 		accountRepository.save(account);
 		Transaction transaction = createTransaction(account, null, request.amount(), account.getCurrency(),
 				TransactionType.WITHDRAWAL, request.description());
+		auditLogService.log(user.getEmail(), AuditAction.WITHDRAW, AuditEntityType.TRANSACTION, transaction.getId(),
+				"Withdrawn " + request.amount());
 		return mapToResponse(transaction);
 	}
 

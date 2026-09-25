@@ -265,6 +265,8 @@ import com.kusuma.payment_engine.dto.response.LoginResponse;
 import com.kusuma.payment_engine.dto.response.RegisterResponse;
 import com.kusuma.payment_engine.entity.EmailVerificationOtp;
 import com.kusuma.payment_engine.entity.User;
+import com.kusuma.payment_engine.enums.AuditAction;
+import com.kusuma.payment_engine.enums.AuditEntityType;
 import com.kusuma.payment_engine.enums.OtpType;
 import com.kusuma.payment_engine.enums.Role;
 import com.kusuma.payment_engine.enums.UserStatus;
@@ -275,6 +277,7 @@ import com.kusuma.payment_engine.exception.UserAlreadyExistsException;
 import com.kusuma.payment_engine.repository.EmailVerificationOtpRepository;
 import com.kusuma.payment_engine.repository.UserRepository;
 import com.kusuma.payment_engine.security.JwtUtil;
+import com.kusuma.payment_engine.service.AuditLogService;
 import com.kusuma.payment_engine.service.AuthService;
 import com.kusuma.payment_engine.service.EmailService;
 import com.kusuma.payment_engine.util.AccountValidationUtil;
@@ -293,6 +296,7 @@ public class AuthServiceImpl implements AuthService {
 	private final PasswordEncoder passwordEncoder;
 	private final EmailVerificationOtpRepository otpRepository;
 	private final EmailService emailService;
+	private final AuditLogService auditLogService;
 
 	@Override
 	public RegisterResponse register(RegisterRequest request) {
@@ -310,6 +314,8 @@ public class AuthServiceImpl implements AuthService {
 				.password(passwordEncoder.encode(request.getPassword())).role(Role.CUSTOMER).status(UserStatus.ACTIVE)
 				.lastPasswordChangedAt(LocalDateTime.now()).build();
 		User savedUser = userRepository.save(user);
+		auditLogService.log(savedUser.getEmail(), AuditAction.REGISTER, AuditEntityType.USER, savedUser.getId(),
+				"User registration successful");
 		generateAndSendOtp(savedUser.getEmail(), OtpType.EMAIL_VERIFICATION);
 		return RegisterResponse.builder().userId(savedUser.getId()).fullName(savedUser.getFullName())
 				.phoneNumber(savedUser.getPhoneNumber()).email(savedUser.getEmail())
@@ -335,6 +341,7 @@ public class AuthServiceImpl implements AuthService {
 		user.setAccountLockedUntil(null);
 		user.setLastLoginAt(LocalDateTime.now());
 		userRepository.save(user);
+		auditLogService.log(user.getEmail(), AuditAction.LOGIN, AuditEntityType.AUTH, user.getId(), "Login successful");
 		String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
 		return LoginResponse.builder().userId(user.getId()).email(user.getEmail()).role(user.getRole().name())
 				.token(token).message("Login Successful").build();
@@ -350,6 +357,8 @@ public class AuthServiceImpl implements AuthService {
 		}
 		validateOtpResendCooldown(email, OtpType.EMAIL_VERIFICATION);
 		generateAndSendOtp(email, OtpType.EMAIL_VERIFICATION);
+		auditLogService.log(user.getEmail(), AuditAction.RESEND_OTP, AuditEntityType.AUTH, user.getId(),
+				"Verification OTP resent");
 		log.info("New verification OTP sent successfully. Email={}", email);
 		return "OTP sent successfully";
 	}
@@ -370,6 +379,8 @@ public class AuthServiceImpl implements AuthService {
 		otpRecord.setUsed(true);
 		userRepository.save(user);
 		otpRepository.save(otpRecord);
+		auditLogService.log(user.getEmail(), AuditAction.VERIFY_EMAIL, AuditEntityType.AUTH, user.getId(),
+				"Email verified successfully");
 		log.info("Email verified successfully. Email={}", email);
 		return "Email verified successfully";
 	}
@@ -409,6 +420,8 @@ public class AuthServiceImpl implements AuthService {
 		otpRecord.setUsed(true);
 		userRepository.save(user);
 		otpRepository.save(otpRecord);
+		auditLogService.log(user.getEmail(), AuditAction.RESET_PASSWORD, AuditEntityType.AUTH, user.getId(),
+				"Password reset successful");
 		return "Password reset successful";
 	}
 

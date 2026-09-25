@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 
 import com.kusuma.payment_engine.dto.response.AdminUserResponse;
 import com.kusuma.payment_engine.entity.User;
+import com.kusuma.payment_engine.enums.AuditAction;
+import com.kusuma.payment_engine.enums.AuditEntityType;
 import com.kusuma.payment_engine.enums.UserStatus;
 import com.kusuma.payment_engine.exception.SelfAdminActionException;
 import com.kusuma.payment_engine.exception.UserAlreadyDisabledException;
@@ -16,6 +18,7 @@ import com.kusuma.payment_engine.exception.UserNotFoundException;
 import com.kusuma.payment_engine.exception.UserNotLockedException;
 import com.kusuma.payment_engine.repository.UserRepository;
 import com.kusuma.payment_engine.service.AdminService;
+import com.kusuma.payment_engine.service.AuditLogService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 public class AdminServiceImpl implements AdminService {
 
 	private final UserRepository userRepository;
+	private final AuditLogService auditLogService;
 
 	@Override
 	public List<AdminUserResponse> getAllUsers() {
@@ -46,6 +50,8 @@ public class AdminServiceImpl implements AdminService {
 			throw new UserAlreadyLockedException("User already locked");
 		}
 		updateUserStatus(user, UserStatus.LOCKED);
+		auditLogService.log(getCurrentAdminEmail(), AuditAction.LOCK_USER, AuditEntityType.USER, user.getId(),
+				"Locked user account: " + user.getEmail());
 	}
 
 	@Override
@@ -58,6 +64,8 @@ public class AdminServiceImpl implements AdminService {
 		user.setFailedLoginAttempts(0);
 		user.setAccountLockedUntil(null);
 		userRepository.save(user);
+		auditLogService.log(getCurrentAdminEmail(), AuditAction.UNLOCK_USER, AuditEntityType.USER, user.getId(),
+				"Unlocked user account: " + user.getEmail());
 	}
 
 	@Override
@@ -68,6 +76,8 @@ public class AdminServiceImpl implements AdminService {
 			throw new UserAlreadyDisabledException("User already disabled");
 		}
 		updateUserStatus(user, UserStatus.INACTIVE);
+		auditLogService.log(getCurrentAdminEmail(), AuditAction.DISABLE_USER, AuditEntityType.USER, user.getId(),
+				"Disabled user account: " + user.getEmail());
 	}
 
 	@Override
@@ -80,6 +90,8 @@ public class AdminServiceImpl implements AdminService {
 		user.setFailedLoginAttempts(0);
 		user.setAccountLockedUntil(null);
 		userRepository.save(user);
+		auditLogService.log(getCurrentAdminEmail(), AuditAction.ENABLE_USER, AuditEntityType.USER, user.getId(),
+				"Enabled user account: " + user.getEmail());
 	}
 
 	private User getUserByIdOrThrow(Long userId) {
