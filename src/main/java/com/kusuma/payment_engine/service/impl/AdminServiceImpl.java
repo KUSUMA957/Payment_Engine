@@ -56,7 +56,7 @@ public class AdminServiceImpl implements AdminService {
 		auditLogService.log(getCurrentAdminEmail(), AuditAction.LOCK_USER, AuditEntityType.USER, user.getId(),
 				"Locked user account: " + user.getEmail());
 		notificationService.createNotification(user, "Account Locked", "Your account has been locked by administrator.",
-				NotificationType.ADMIN);
+				NotificationType.ADMIN, true);
 	}
 
 	@Override
@@ -72,7 +72,7 @@ public class AdminServiceImpl implements AdminService {
 		auditLogService.log(getCurrentAdminEmail(), AuditAction.UNLOCK_USER, AuditEntityType.USER, user.getId(),
 				"Unlocked user account: " + user.getEmail());
 		notificationService.createNotification(user, "Account Unlocked", "Your account has been unlocked.",
-				NotificationType.ADMIN);
+				NotificationType.ADMIN, false);
 	}
 
 	@Override
@@ -86,7 +86,7 @@ public class AdminServiceImpl implements AdminService {
 		auditLogService.log(getCurrentAdminEmail(), AuditAction.DISABLE_USER, AuditEntityType.USER, user.getId(),
 				"Disabled user account: " + user.getEmail());
 		notificationService.createNotification(user, "Account Disabled",
-				"Your account has been disabled by administrator.", NotificationType.ADMIN);
+				"Your account has been disabled by administrator.", NotificationType.ADMIN, true);
 	}
 
 	@Override
@@ -102,7 +102,7 @@ public class AdminServiceImpl implements AdminService {
 		auditLogService.log(getCurrentAdminEmail(), AuditAction.ENABLE_USER, AuditEntityType.USER, user.getId(),
 				"Enabled user account: " + user.getEmail());
 		notificationService.createNotification(user, "Account Enabled", "Your account has been enabled again.",
-				NotificationType.ADMIN);
+				NotificationType.ADMIN, false);
 	}
 
 	private User getUserByIdOrThrow(Long userId) {

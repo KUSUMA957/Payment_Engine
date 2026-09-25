@@ -23,19 +23,20 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class NotificationServiceImpl implements NotificationService {
-
+	private static final Logger log = LoggerFactory.getLogger(NotificationServiceImpl.class);
 	private final NotificationRepository notificationRepository;
 	private final UserRepository userRepository;
 	private final EmailService emailService;
-	private static final Logger log = LoggerFactory.getLogger(NotificationServiceImpl.class);
-	
+
 	@Override
 	public void createNotification(User user, String title, String message,
-			com.kusuma.payment_engine.enums.NotificationType type) {
+			com.kusuma.payment_engine.enums.NotificationType type, boolean sendEmail) {
 		Notification notification = Notification.builder().user(user).title(title).message(message)
 				.notificationType(type).build();
 		notificationRepository.save(notification);
-		sendNotificationEmail(user.getEmail(), title, message);
+		if (sendEmail) {
+			sendNotificationEmail(user.getEmail(), title, message);
+		}
 	}
 
 	@Override

@@ -320,7 +320,7 @@ public class AuthServiceImpl implements AuthService {
 		auditLogService.log(savedUser.getEmail(), AuditAction.REGISTER, AuditEntityType.USER, savedUser.getId(),
 				"User registration successful");
 		notificationService.createNotification(savedUser, "Registration Successful",
-				"Your account has been registered successfully.", NotificationType.SECURITY);
+				"Your account has been registered successfully.", NotificationType.SECURITY, true);
 		generateAndSendOtp(savedUser.getEmail(), OtpType.EMAIL_VERIFICATION);
 		return RegisterResponse.builder().userId(savedUser.getId()).fullName(savedUser.getFullName())
 				.phoneNumber(savedUser.getPhoneNumber()).email(savedUser.getEmail())
@@ -348,7 +348,7 @@ public class AuthServiceImpl implements AuthService {
 		userRepository.save(user);
 		auditLogService.log(user.getEmail(), AuditAction.LOGIN, AuditEntityType.AUTH, user.getId(), "Login successful");
 		notificationService.createNotification(user, "Login Successful", "You logged in successfully.",
-				NotificationType.SECURITY);
+				NotificationType.SECURITY, false);
 		String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
 		return LoginResponse.builder().userId(user.getId()).email(user.getEmail()).role(user.getRole().name())
 				.token(token).message("Login Successful").build();
@@ -389,7 +389,7 @@ public class AuthServiceImpl implements AuthService {
 		auditLogService.log(user.getEmail(), AuditAction.VERIFY_EMAIL, AuditEntityType.AUTH, user.getId(),
 				"Email verified successfully");
 		notificationService.createNotification(user, "Email Verified", "Your email has been verified successfully.",
-				NotificationType.SECURITY);
+				NotificationType.SECURITY, false);
 		log.info("Email verified successfully. Email={}", email);
 		return "Email verified successfully";
 	}
@@ -432,7 +432,7 @@ public class AuthServiceImpl implements AuthService {
 		auditLogService.log(user.getEmail(), AuditAction.RESET_PASSWORD, AuditEntityType.AUTH, user.getId(),
 				"Password reset successful");
 		notificationService.createNotification(user, "Password Reset", "Your password has been reset successfully.",
-				NotificationType.SECURITY);
+				NotificationType.SECURITY, true);
 		return "Password reset successful";
 	}
 

@@ -8,7 +8,7 @@ import com.kusuma.payment_engine.enums.NotificationType;
 
 public interface NotificationService {
 
-	void createNotification(User user, String title, String message, NotificationType type);
+	void createNotification(User user, String title, String message, NotificationType type, boolean sendEmail);
 
 	List<NotificationResponse> getMyNotifications();
 

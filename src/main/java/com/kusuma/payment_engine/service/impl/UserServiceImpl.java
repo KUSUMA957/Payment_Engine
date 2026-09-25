@@ -63,7 +63,7 @@ public class UserServiceImpl implements UserService {
 		auditLogService.log(user.getEmail(), AuditAction.UPDATE_PROFILE, AuditEntityType.USER, user.getId(),
 				"Profile updated");
 		notificationService.createNotification(user, "Profile Updated",
-				"Your profile details were updated successfully.", NotificationType.SECURITY);
+				"Your profile details were updated successfully.", NotificationType.SECURITY, false);
 		return mapToUserProfileResponse(updatedUser);
 	}
 
@@ -87,7 +87,7 @@ public class UserServiceImpl implements UserService {
 		auditLogService.log(user.getEmail(), AuditAction.CHANGE_PASSWORD, AuditEntityType.USER, user.getId(),
 				"Password changed");
 		notificationService.createNotification(user, "Password Changed", "Your password has been changed successfully.",
-				NotificationType.SECURITY);
+				NotificationType.SECURITY, true);
 	}
 
 	private User getAuthenticatedUser() {

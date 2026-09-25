@@ -193,7 +193,7 @@ public class AccountServiceImpl implements AccountService {
 		auditLogService.log(user.getEmail(), AuditAction.CREATE_ACCOUNT, AuditEntityType.ACCOUNT, savedAccount.getId(),
 				"Primary account created with account number " + savedAccount.getAccountNumber());
 		notificationService.createNotification(user, "Account Created",
-				"Account " + savedAccount.getAccountNumber() + " created successfully.", NotificationType.ACCOUNT);
+				"Account " + savedAccount.getAccountNumber() + " created successfully.", NotificationType.ACCOUNT, true);
 		return mapToResponse(savedAccount);
 	}
 
@@ -219,7 +219,7 @@ public class AccountServiceImpl implements AccountService {
 		auditLogService.log(getCurrentAdminEmail(), AuditAction.FREEZE_ACCOUNT, AuditEntityType.ACCOUNT,
 				account.getId(), "Account frozen. Account Number: " + account.getAccountNumber());
 		notificationService.createNotification(account.getUser(), "Account Frozen",
-				"Your account has been frozen by administrator.", NotificationType.ACCOUNT);
+				"Your account has been frozen by administrator.", NotificationType.ACCOUNT, true);
 	}
 
 	@Override
@@ -236,7 +236,7 @@ public class AccountServiceImpl implements AccountService {
 		auditLogService.log(getCurrentAdminEmail(), AuditAction.UNFREEZE_ACCOUNT, AuditEntityType.ACCOUNT,
 				account.getId(), "Account unfrozen. Account Number: " + account.getAccountNumber());
 		notificationService.createNotification(account.getUser(), "Account Unfrozen",
-				"Your account has been activated again.", NotificationType.ACCOUNT);
+				"Your account has been activated again.", NotificationType.ACCOUNT, false);
 	}
 
 	@Override
@@ -253,7 +253,7 @@ public class AccountServiceImpl implements AccountService {
 		auditLogService.log(getCurrentAdminEmail(), AuditAction.CLOSE_ACCOUNT, AuditEntityType.ACCOUNT, account.getId(),
 				"Account closed. Account Number: " + account.getAccountNumber());
 		notificationService.createNotification(account.getUser(), "Account Closed",
-				"Your account has been closed successfully.", NotificationType.ACCOUNT);
+				"Your account has been closed successfully.", NotificationType.ACCOUNT, true);
 	}
 
 	private User getAuthenticatedUser() {

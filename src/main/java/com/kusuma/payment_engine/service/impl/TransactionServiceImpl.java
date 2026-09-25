@@ -78,7 +78,7 @@ public class TransactionServiceImpl implements TransactionService {
 					"Transferred " + request.amount() + " to account " + receiver.getAccountNumber());
 			notificationService.createNotification(user, "Transfer Successful",
 					"₹" + request.amount() + " transferred to account " + receiver.getAccountNumber(),
-					NotificationType.TRANSACTION);
+					NotificationType.TRANSACTION, true);
 			return mapToResponse(transaction);
 		} catch (ObjectOptimisticLockingFailureException ex) {
 			throw new ConcurrentTransactionException("Account was modified by another transaction. Please retry.");
@@ -100,7 +100,7 @@ public class TransactionServiceImpl implements TransactionService {
 			auditLogService.log(user.getEmail(), AuditAction.DEPOSIT, AuditEntityType.TRANSACTION, transaction.getId(),
 					"Deposited " + request.amount());
 			notificationService.createNotification(user, "Deposit Successful",
-					"₹" + request.amount() + " deposited successfully.", NotificationType.TRANSACTION);
+					"₹" + request.amount() + " deposited successfully.", NotificationType.TRANSACTION, true);
 			return mapToResponse(transaction);
 		} catch (ObjectOptimisticLockingFailureException ex) {
 			throw new ConcurrentTransactionException("Account was modified by another transaction. Please retry.");
@@ -125,7 +125,7 @@ public class TransactionServiceImpl implements TransactionService {
 			auditLogService.log(user.getEmail(), AuditAction.WITHDRAW, AuditEntityType.TRANSACTION, transaction.getId(),
 					"Withdrawn " + request.amount());
 			notificationService.createNotification(user, "Withdrawal Successful",
-					"₹" + request.amount() + " withdrawn successfully.", NotificationType.TRANSACTION);
+					"₹" + request.amount() + " withdrawn successfully.", NotificationType.TRANSACTION, true);
 			return mapToResponse(transaction);
 		} catch (ObjectOptimisticLockingFailureException ex) {
 			throw new ConcurrentTransactionException("Account was modified by another transaction. Please retry.");

@@ -32,7 +32,7 @@ public class NotificationController {
 	}
 
 	@PutMapping("/{notificationId}/read")
-	public ResponseEntity<String> markAsRead(@PathVariable Long notificationId) {
+	public ResponseEntity<String> markAsRead(@PathVariable("notificationId") Long notificationId) {
 		notificationService.markAsRead(notificationId);
 		return ResponseEntity.ok("Notification marked as read");
 	}
