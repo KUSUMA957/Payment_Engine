@@ -1,15 +1,15 @@
 package com.kusuma.payment_engine.service.impl;
 
 import java.math.BigDecimal;
-
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
+
 import com.kusuma.payment_engine.constants.SystemConstants;
 import com.kusuma.payment_engine.dto.request.TransactionAmountRequest;
 import com.kusuma.payment_engine.dto.request.TransferRequest;
@@ -19,6 +19,7 @@ import com.kusuma.payment_engine.entity.Transaction;
 import com.kusuma.payment_engine.entity.User;
 import com.kusuma.payment_engine.enums.AuditAction;
 import com.kusuma.payment_engine.enums.AuditEntityType;
+import com.kusuma.payment_engine.enums.NotificationType;
 import com.kusuma.payment_engine.enums.Role;
 import com.kusuma.payment_engine.enums.TransactionStatus;
 import com.kusuma.payment_engine.enums.TransactionType;
@@ -33,6 +34,7 @@ import com.kusuma.payment_engine.repository.AccountRepository;
 import com.kusuma.payment_engine.repository.TransactionRepository;
 import com.kusuma.payment_engine.repository.UserRepository;
 import com.kusuma.payment_engine.service.AuditLogService;
+import com.kusuma.payment_engine.service.NotificationService;
 import com.kusuma.payment_engine.service.TransactionService;
 import com.kusuma.payment_engine.util.AccountValidationUtil;
 import com.kusuma.payment_engine.util.TransactionReferenceUtil;
@@ -47,6 +49,7 @@ public class TransactionServiceImpl implements TransactionService {
 	private final AccountRepository accountRepository;
 	private final UserRepository userRepository;
 	private final AuditLogService auditLogService;
+	private final NotificationService notificationService;
 
 	@Override
 	@Transactional
@@ -73,6 +76,9 @@ public class TransactionServiceImpl implements TransactionService {
 					TransactionType.TRANSFER, request.description());
 			auditLogService.log(user.getEmail(), AuditAction.TRANSFER, AuditEntityType.TRANSACTION, transaction.getId(),
 					"Transferred " + request.amount() + " to account " + receiver.getAccountNumber());
+			notificationService.createNotification(user, "Transfer Successful",
+					"₹" + request.amount() + " transferred to account " + receiver.getAccountNumber(),
+					NotificationType.TRANSACTION);
 			return mapToResponse(transaction);
 		} catch (ObjectOptimisticLockingFailureException ex) {
 			throw new ConcurrentTransactionException("Account was modified by another transaction. Please retry.");
@@ -93,6 +99,8 @@ public class TransactionServiceImpl implements TransactionService {
 					TransactionType.DEPOSIT, request.description());
 			auditLogService.log(user.getEmail(), AuditAction.DEPOSIT, AuditEntityType.TRANSACTION, transaction.getId(),
 					"Deposited " + request.amount());
+			notificationService.createNotification(user, "Deposit Successful",
+					"₹" + request.amount() + " deposited successfully.", NotificationType.TRANSACTION);
 			return mapToResponse(transaction);
 		} catch (ObjectOptimisticLockingFailureException ex) {
 			throw new ConcurrentTransactionException("Account was modified by another transaction. Please retry.");
@@ -116,6 +124,8 @@ public class TransactionServiceImpl implements TransactionService {
 					TransactionType.WITHDRAWAL, request.description());
 			auditLogService.log(user.getEmail(), AuditAction.WITHDRAW, AuditEntityType.TRANSACTION, transaction.getId(),
 					"Withdrawn " + request.amount());
+			notificationService.createNotification(user, "Withdrawal Successful",
+					"₹" + request.amount() + " withdrawn successfully.", NotificationType.TRANSACTION);
 			return mapToResponse(transaction);
 		} catch (ObjectOptimisticLockingFailureException ex) {
 			throw new ConcurrentTransactionException("Account was modified by another transaction. Please retry.");

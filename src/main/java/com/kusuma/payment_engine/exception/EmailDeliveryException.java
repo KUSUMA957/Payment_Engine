@@ -5,4 +5,8 @@ public class EmailDeliveryException extends RuntimeException {
 		// TODO Auto-generated constructor stub
 		super(message, cause);
 	}
+
+	public EmailDeliveryException(String message) {
+		super(message);
+	}
 }

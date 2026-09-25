@@ -9,6 +9,7 @@ import com.kusuma.payment_engine.dto.response.AdminUserResponse;
 import com.kusuma.payment_engine.entity.User;
 import com.kusuma.payment_engine.enums.AuditAction;
 import com.kusuma.payment_engine.enums.AuditEntityType;
+import com.kusuma.payment_engine.enums.NotificationType;
 import com.kusuma.payment_engine.enums.UserStatus;
 import com.kusuma.payment_engine.exception.SelfAdminActionException;
 import com.kusuma.payment_engine.exception.UserAlreadyDisabledException;
@@ -19,6 +20,7 @@ import com.kusuma.payment_engine.exception.UserNotLockedException;
 import com.kusuma.payment_engine.repository.UserRepository;
 import com.kusuma.payment_engine.service.AdminService;
 import com.kusuma.payment_engine.service.AuditLogService;
+import com.kusuma.payment_engine.service.NotificationService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -28,6 +30,7 @@ public class AdminServiceImpl implements AdminService {
 
 	private final UserRepository userRepository;
 	private final AuditLogService auditLogService;
+	private final NotificationService notificationService;
 
 	@Override
 	public List<AdminUserResponse> getAllUsers() {
@@ -52,6 +55,8 @@ public class AdminServiceImpl implements AdminService {
 		updateUserStatus(user, UserStatus.LOCKED);
 		auditLogService.log(getCurrentAdminEmail(), AuditAction.LOCK_USER, AuditEntityType.USER, user.getId(),
 				"Locked user account: " + user.getEmail());
+		notificationService.createNotification(user, "Account Locked", "Your account has been locked by administrator.",
+				NotificationType.ADMIN);
 	}
 
 	@Override
@@ -66,6 +71,8 @@ public class AdminServiceImpl implements AdminService {
 		userRepository.save(user);
 		auditLogService.log(getCurrentAdminEmail(), AuditAction.UNLOCK_USER, AuditEntityType.USER, user.getId(),
 				"Unlocked user account: " + user.getEmail());
+		notificationService.createNotification(user, "Account Unlocked", "Your account has been unlocked.",
+				NotificationType.ADMIN);
 	}
 
 	@Override
@@ -78,6 +85,8 @@ public class AdminServiceImpl implements AdminService {
 		updateUserStatus(user, UserStatus.INACTIVE);
 		auditLogService.log(getCurrentAdminEmail(), AuditAction.DISABLE_USER, AuditEntityType.USER, user.getId(),
 				"Disabled user account: " + user.getEmail());
+		notificationService.createNotification(user, "Account Disabled",
+				"Your account has been disabled by administrator.", NotificationType.ADMIN);
 	}
 
 	@Override
@@ -92,6 +101,8 @@ public class AdminServiceImpl implements AdminService {
 		userRepository.save(user);
 		auditLogService.log(getCurrentAdminEmail(), AuditAction.ENABLE_USER, AuditEntityType.USER, user.getId(),
 				"Enabled user account: " + user.getEmail());
+		notificationService.createNotification(user, "Account Enabled", "Your account has been enabled again.",
+				NotificationType.ADMIN);
 	}
 
 	private User getUserByIdOrThrow(Long userId) {

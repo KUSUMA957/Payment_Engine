@@ -267,6 +267,7 @@ import com.kusuma.payment_engine.entity.EmailVerificationOtp;
 import com.kusuma.payment_engine.entity.User;
 import com.kusuma.payment_engine.enums.AuditAction;
 import com.kusuma.payment_engine.enums.AuditEntityType;
+import com.kusuma.payment_engine.enums.NotificationType;
 import com.kusuma.payment_engine.enums.OtpType;
 import com.kusuma.payment_engine.enums.Role;
 import com.kusuma.payment_engine.enums.UserStatus;
@@ -280,6 +281,7 @@ import com.kusuma.payment_engine.security.JwtUtil;
 import com.kusuma.payment_engine.service.AuditLogService;
 import com.kusuma.payment_engine.service.AuthService;
 import com.kusuma.payment_engine.service.EmailService;
+import com.kusuma.payment_engine.service.NotificationService;
 import com.kusuma.payment_engine.util.AccountValidationUtil;
 import com.kusuma.payment_engine.util.OtpGeneratorUtil;
 
@@ -297,6 +299,7 @@ public class AuthServiceImpl implements AuthService {
 	private final EmailVerificationOtpRepository otpRepository;
 	private final EmailService emailService;
 	private final AuditLogService auditLogService;
+	private final NotificationService notificationService;
 
 	@Override
 	public RegisterResponse register(RegisterRequest request) {
@@ -316,6 +319,8 @@ public class AuthServiceImpl implements AuthService {
 		User savedUser = userRepository.save(user);
 		auditLogService.log(savedUser.getEmail(), AuditAction.REGISTER, AuditEntityType.USER, savedUser.getId(),
 				"User registration successful");
+		notificationService.createNotification(savedUser, "Registration Successful",
+				"Your account has been registered successfully.", NotificationType.SECURITY);
 		generateAndSendOtp(savedUser.getEmail(), OtpType.EMAIL_VERIFICATION);
 		return RegisterResponse.builder().userId(savedUser.getId()).fullName(savedUser.getFullName())
 				.phoneNumber(savedUser.getPhoneNumber()).email(savedUser.getEmail())
@@ -342,6 +347,8 @@ public class AuthServiceImpl implements AuthService {
 		user.setLastLoginAt(LocalDateTime.now());
 		userRepository.save(user);
 		auditLogService.log(user.getEmail(), AuditAction.LOGIN, AuditEntityType.AUTH, user.getId(), "Login successful");
+		notificationService.createNotification(user, "Login Successful", "You logged in successfully.",
+				NotificationType.SECURITY);
 		String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
 		return LoginResponse.builder().userId(user.getId()).email(user.getEmail()).role(user.getRole().name())
 				.token(token).message("Login Successful").build();
@@ -381,6 +388,8 @@ public class AuthServiceImpl implements AuthService {
 		otpRepository.save(otpRecord);
 		auditLogService.log(user.getEmail(), AuditAction.VERIFY_EMAIL, AuditEntityType.AUTH, user.getId(),
 				"Email verified successfully");
+		notificationService.createNotification(user, "Email Verified", "Your email has been verified successfully.",
+				NotificationType.SECURITY);
 		log.info("Email verified successfully. Email={}", email);
 		return "Email verified successfully";
 	}
@@ -422,6 +431,8 @@ public class AuthServiceImpl implements AuthService {
 		otpRepository.save(otpRecord);
 		auditLogService.log(user.getEmail(), AuditAction.RESET_PASSWORD, AuditEntityType.AUTH, user.getId(),
 				"Password reset successful");
+		notificationService.createNotification(user, "Password Reset", "Your password has been reset successfully.",
+				NotificationType.SECURITY);
 		return "Password reset successful";
 	}
 

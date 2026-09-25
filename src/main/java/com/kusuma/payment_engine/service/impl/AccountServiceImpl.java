@@ -151,6 +151,7 @@ import com.kusuma.payment_engine.enums.AccountType;
 import com.kusuma.payment_engine.enums.AuditAction;
 import com.kusuma.payment_engine.enums.AuditEntityType;
 import com.kusuma.payment_engine.enums.CurrencyCode;
+import com.kusuma.payment_engine.enums.NotificationType;
 import com.kusuma.payment_engine.exception.AccountAlreadyClosedException;
 import com.kusuma.payment_engine.exception.AccountAlreadyExistsException;
 import com.kusuma.payment_engine.exception.AccountAlreadyFrozenException;
@@ -163,6 +164,7 @@ import com.kusuma.payment_engine.repository.UserRepository;
 import com.kusuma.payment_engine.service.AccountNumberService;
 import com.kusuma.payment_engine.service.AccountService;
 import com.kusuma.payment_engine.service.AuditLogService;
+import com.kusuma.payment_engine.service.NotificationService;
 import com.kusuma.payment_engine.util.AccountValidationUtil;
 
 import lombok.RequiredArgsConstructor;
@@ -175,6 +177,7 @@ public class AccountServiceImpl implements AccountService {
 	private final UserRepository userRepository;
 	private final AccountNumberService accountNumberService;
 	private final AuditLogService auditLogService;
+	private final NotificationService notificationService;
 
 	@Override
 	@Transactional
@@ -189,6 +192,8 @@ public class AccountServiceImpl implements AccountService {
 		Account savedAccount = accountRepository.save(account);
 		auditLogService.log(user.getEmail(), AuditAction.CREATE_ACCOUNT, AuditEntityType.ACCOUNT, savedAccount.getId(),
 				"Primary account created with account number " + savedAccount.getAccountNumber());
+		notificationService.createNotification(user, "Account Created",
+				"Account " + savedAccount.getAccountNumber() + " created successfully.", NotificationType.ACCOUNT);
 		return mapToResponse(savedAccount);
 	}
 
@@ -213,6 +218,8 @@ public class AccountServiceImpl implements AccountService {
 		updateAccountStatus(account, AccountStatus.FROZEN);
 		auditLogService.log(getCurrentAdminEmail(), AuditAction.FREEZE_ACCOUNT, AuditEntityType.ACCOUNT,
 				account.getId(), "Account frozen. Account Number: " + account.getAccountNumber());
+		notificationService.createNotification(account.getUser(), "Account Frozen",
+				"Your account has been frozen by administrator.", NotificationType.ACCOUNT);
 	}
 
 	@Override
@@ -228,6 +235,8 @@ public class AccountServiceImpl implements AccountService {
 		updateAccountStatus(account, AccountStatus.ACTIVE);
 		auditLogService.log(getCurrentAdminEmail(), AuditAction.UNFREEZE_ACCOUNT, AuditEntityType.ACCOUNT,
 				account.getId(), "Account unfrozen. Account Number: " + account.getAccountNumber());
+		notificationService.createNotification(account.getUser(), "Account Unfrozen",
+				"Your account has been activated again.", NotificationType.ACCOUNT);
 	}
 
 	@Override
@@ -243,6 +252,8 @@ public class AccountServiceImpl implements AccountService {
 		updateAccountStatus(account, AccountStatus.CLOSED);
 		auditLogService.log(getCurrentAdminEmail(), AuditAction.CLOSE_ACCOUNT, AuditEntityType.ACCOUNT, account.getId(),
 				"Account closed. Account Number: " + account.getAccountNumber());
+		notificationService.createNotification(account.getUser(), "Account Closed",
+				"Your account has been closed successfully.", NotificationType.ACCOUNT);
 	}
 
 	private User getAuthenticatedUser() {

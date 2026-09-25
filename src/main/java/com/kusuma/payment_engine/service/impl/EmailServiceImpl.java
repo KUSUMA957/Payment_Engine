@@ -1,14 +1,16 @@
 package com.kusuma.payment_engine.service.impl;
 
-import org.springframework.mail.SimpleMailMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import com.kusuma.payment_engine.exception.EmailDeliveryException;
 import com.kusuma.payment_engine.service.EmailService;
 
+import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -31,6 +33,20 @@ public class EmailServiceImpl implements EmailService {
 			ex.printStackTrace();
 			log.error("Email delivery failed for {}", toEmail, ex);
 			throw new EmailDeliveryException("Failed to send OTP email.", ex);
+		}
+	}
+
+	@Override
+	public void sendEmail(String toEmail, String subject, String body) {
+		try {
+			MimeMessage message = mailSender.createMimeMessage();
+			MimeMessageHelper helper = new MimeMessageHelper(message);
+			helper.setTo(toEmail);
+			helper.setSubject(subject);
+			helper.setText(body, false);
+			mailSender.send(message);
+		} catch (Exception ex) {
+			throw new EmailDeliveryException("Failed to send email");
 		}
 	}
 }
