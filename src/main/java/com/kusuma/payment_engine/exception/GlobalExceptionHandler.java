@@ -260,6 +260,12 @@ public class GlobalExceptionHandler {
 		return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
 	}
 
+	@ExceptionHandler(ConcurrentTransactionException.class)
+	public ResponseEntity<ErrorResponse> handleConcurrentTransaction(ConcurrentTransactionException ex) {
+		return ResponseEntity.status(HttpStatus.CONFLICT)
+				.body(new ErrorResponse(LocalDateTime.now(), HttpStatus.CONFLICT.value(), ex.getMessage()));
+	}
+
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<Map<String, String>> handleValidationException(MethodArgumentNotValidException ex) {
 		Map<String, String> errors = new HashMap<>();
