@@ -35,12 +35,18 @@ public class BeneficiaryController {
 	}
 
 	@PutMapping("/{id}")
-	public BeneficiaryResponse updateBeneficiary(@PathVariable("id") Long id, @Valid @RequestBody UpdateBeneficiaryRequest request) {
+	public BeneficiaryResponse updateBeneficiary(@PathVariable("id") Long id,
+			@Valid @RequestBody UpdateBeneficiaryRequest request) {
 		return beneficiaryService.updateBeneficiary(id, request);
 	}
 
 	@DeleteMapping("/{id}")
 	public void deleteBeneficiary(@PathVariable("id") Long id) {
 		beneficiaryService.deleteBeneficiary(id);
+	}
+
+	@GetMapping("/admin/users/{userId}")
+	public List<BeneficiaryResponse> getUserBeneficiaries(@PathVariable("userId") Long userId) {
+		return beneficiaryService.getUserBeneficiaries(userId);
 	}
 }

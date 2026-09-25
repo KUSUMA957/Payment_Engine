@@ -16,11 +16,13 @@ import com.kusuma.payment_engine.enums.AccountStatus;
 import com.kusuma.payment_engine.enums.AuditAction;
 import com.kusuma.payment_engine.enums.AuditEntityType;
 import com.kusuma.payment_engine.enums.NotificationType;
+import com.kusuma.payment_engine.enums.Role;
 import com.kusuma.payment_engine.exception.AccountNotFoundException;
 import com.kusuma.payment_engine.exception.BeneficiaryNotFoundException;
 import com.kusuma.payment_engine.exception.DuplicateBeneficiaryException;
 import com.kusuma.payment_engine.exception.InvalidTransactionException;
 import com.kusuma.payment_engine.exception.NoChangesDetectedException;
+import com.kusuma.payment_engine.exception.UnauthorizedTransactionAccessException;
 import com.kusuma.payment_engine.exception.UserNotFoundException;
 import com.kusuma.payment_engine.repository.AccountRepository;
 import com.kusuma.payment_engine.repository.BeneficiaryRepository;
@@ -125,6 +127,16 @@ public class BeneficiaryServiceImpl implements BeneficiaryService {
 		beneficiaryRepository.delete(beneficiary);
 		notificationService.createNotification(user, "Beneficiary Removed",
 				"Beneficiary " + nickname + " removed successfully.", NotificationType.ACCOUNT, false);
+	}
+
+	@Override
+	public List<BeneficiaryResponse> getUserBeneficiaries(Long userId) {
+		User admin = getAuthenticatedUser();
+		if (admin.getRole() != Role.ADMIN) {
+			throw new UnauthorizedTransactionAccessException("Only admins can access this resource");
+		}
+		User user = userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException("User not found"));
+		return beneficiaryRepository.findByOwnerUser(user).stream().map(this::mapToResponse).toList();
 	}
 
 	private User getAuthenticatedUser() {
