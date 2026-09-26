@@ -38,9 +38,11 @@ import com.kusuma.payment_engine.repository.BeneficiaryRepository;
 import com.kusuma.payment_engine.repository.TransactionRepository;
 import com.kusuma.payment_engine.repository.UserRepository;
 import com.kusuma.payment_engine.service.AuditLogService;
+import com.kusuma.payment_engine.service.EmailService;
 import com.kusuma.payment_engine.service.NotificationService;
 import com.kusuma.payment_engine.service.TransactionService;
 import com.kusuma.payment_engine.util.AccountValidationUtil;
+import com.kusuma.payment_engine.util.EmailTemplateUtil;
 import com.kusuma.payment_engine.util.TransactionReferenceUtil;
 
 import lombok.RequiredArgsConstructor;
@@ -55,6 +57,7 @@ public class TransactionServiceImpl implements TransactionService {
 	private final AuditLogService auditLogService;
 	private final NotificationService notificationService;
 	private final BeneficiaryRepository beneficiaryRepository;
+	private final EmailService emailService;
 
 	@Override
 	@Transactional
@@ -81,9 +84,25 @@ public class TransactionServiceImpl implements TransactionService {
 					TransactionType.TRANSFER, request.description());
 			auditLogService.log(user.getEmail(), AuditAction.TRANSFER, AuditEntityType.TRANSACTION, transaction.getId(),
 					"Transferred " + request.amount() + " to account " + receiver.getAccountNumber());
-			notificationService.createNotification(user, "Transfer Successful",
+			User receiverUser = receiver.getUser();
+			// Sender Notification
+			notificationService.createNotification(user, "Amount Debited",
 					"₹" + request.amount() + " transferred to account " + receiver.getAccountNumber(),
-					NotificationType.TRANSACTION, true);
+					NotificationType.TRANSACTION, false);
+			// Receiver Notification
+			notificationService.createNotification(receiverUser, "Amount Credited",
+					"₹" + request.amount() + " credited to your account.", NotificationType.TRANSACTION, false);
+			// Sender Email
+			String debitEmailBody = EmailTemplateUtil.debitEmail(user.getFullName(),
+					transaction.getTransactionReference(), transaction.getAmount(), sender.getAccountNumber(),
+					receiver.getAccountNumber());
+
+			emailService.sendEmail(user.getEmail(), "Payment Engine - Amount Debited", debitEmailBody);
+			// Receiver Email
+			String creditEmailBody = EmailTemplateUtil.creditEmail(receiverUser.getFullName(),
+					transaction.getTransactionReference(), transaction.getAmount(), sender.getAccountNumber(),
+					receiver.getAccountNumber());
+			emailService.sendEmail(receiverUser.getEmail(), "Payment Engine - Amount Credited", creditEmailBody);
 			return mapToResponse(transaction);
 		} catch (ObjectOptimisticLockingFailureException ex) {
 			throw new ConcurrentTransactionException("Account was modified by another transaction. Please retry.");
@@ -105,7 +124,10 @@ public class TransactionServiceImpl implements TransactionService {
 			auditLogService.log(user.getEmail(), AuditAction.DEPOSIT, AuditEntityType.TRANSACTION, transaction.getId(),
 					"Deposited " + request.amount());
 			notificationService.createNotification(user, "Deposit Successful",
-					"₹" + request.amount() + " deposited successfully.", NotificationType.TRANSACTION, true);
+					"₹" + request.amount() + " deposited successfully.", NotificationType.TRANSACTION, false);
+			String emailBody = EmailTemplateUtil.depositEmail(user.getFullName(), transaction.getTransactionReference(),
+					transaction.getAmount(), account.getAccountNumber());
+			emailService.sendEmail(user.getEmail(), "Payment Engine - Deposit Successful", emailBody);
 			return mapToResponse(transaction);
 		} catch (ObjectOptimisticLockingFailureException ex) {
 			throw new ConcurrentTransactionException("Account was modified by another transaction. Please retry.");
@@ -130,7 +152,10 @@ public class TransactionServiceImpl implements TransactionService {
 			auditLogService.log(user.getEmail(), AuditAction.WITHDRAW, AuditEntityType.TRANSACTION, transaction.getId(),
 					"Withdrawn " + request.amount());
 			notificationService.createNotification(user, "Withdrawal Successful",
-					"₹" + request.amount() + " withdrawn successfully.", NotificationType.TRANSACTION, true);
+					"₹" + request.amount() + " withdrawn successfully.", NotificationType.TRANSACTION, false);
+			String emailBody = EmailTemplateUtil.withdrawalEmail(user.getFullName(),
+					transaction.getTransactionReference(), transaction.getAmount(), account.getAccountNumber());
+			emailService.sendEmail(user.getEmail(), "Payment Engine - Withdrawal Successful", emailBody);
 			return mapToResponse(transaction);
 		} catch (ObjectOptimisticLockingFailureException ex) {
 			throw new ConcurrentTransactionException("Account was modified by another transaction. Please retry.");
@@ -148,51 +173,48 @@ public class TransactionServiceImpl implements TransactionService {
 	@Override
 	@Transactional
 	public TransactionResponse transferToBeneficiary(BeneficiaryTransferRequest request) {
-
 		try {
-
 			User user = getAuthenticatedUser();
-
 			Account sender = getUserAccount(user);
-
 			Beneficiary beneficiary = beneficiaryRepository.findByIdAndOwnerUser(request.beneficiaryId(), user)
 					.orElseThrow(() -> new BeneficiaryNotFoundException("Beneficiary not found"));
-
 			Account receiver = beneficiary.getBeneficiaryAccount();
-
 			AccountValidationUtil.validateUserAndAccountForTransactions(user, sender);
-
 			AccountValidationUtil.validateAccountForTransactions(receiver);
-
 			validateAmount(request.amount());
-
 			if (sender.getBalance().compareTo(request.amount()) < 0) {
-
 				throw new InsufficientBalanceException("Insufficient balance");
 			}
-
 			sender.setBalance(sender.getBalance().subtract(request.amount()));
-
 			receiver.setBalance(receiver.getBalance().add(request.amount()));
-
 			accountRepository.save(sender);
 			accountRepository.save(receiver);
-
 			Transaction transaction = createTransaction(sender, receiver, request.amount(), sender.getCurrency(),
 					TransactionType.TRANSFER, request.description());
-
 			auditLogService.log(user.getEmail(), AuditAction.TRANSFER, AuditEntityType.TRANSACTION, transaction.getId(),
 					"Transferred " + request.amount() + " to beneficiary " + beneficiary.getNickname() + " ("
 							+ receiver.getAccountNumber() + ")");
-
-			notificationService.createNotification(user, "Transfer Successful",
+			User receiverUser = receiver.getUser();
+			// Sender Notification
+			notificationService.createNotification(user, "Amount Debited",
 					"₹" + request.amount() + " transferred to " + beneficiary.getNickname(),
-					NotificationType.TRANSACTION, true);
+					NotificationType.TRANSACTION, false);
+			// Receiver Notification
+			notificationService.createNotification(receiverUser, "Amount Credited",
+					"₹" + request.amount() + " credited to your account.", NotificationType.TRANSACTION, false);
+			// Sender Email
+			String debitEmailBody = EmailTemplateUtil.debitEmail(user.getFullName(),
+					transaction.getTransactionReference(), transaction.getAmount(), sender.getAccountNumber(),
+					receiver.getAccountNumber());
 
+			emailService.sendEmail(user.getEmail(), "Payment Engine - Amount Debited", debitEmailBody);
+			// Receiver Email
+			String creditEmailBody = EmailTemplateUtil.creditEmail(receiverUser.getFullName(),
+					transaction.getTransactionReference(), transaction.getAmount(), sender.getAccountNumber(),
+					receiver.getAccountNumber());
+			emailService.sendEmail(receiverUser.getEmail(), "Payment Engine - Amount Credited", creditEmailBody);
 			return mapToResponse(transaction);
-
 		} catch (ObjectOptimisticLockingFailureException ex) {
-
 			throw new ConcurrentTransactionException("Account was modified by another transaction. Please retry.");
 		}
 	}

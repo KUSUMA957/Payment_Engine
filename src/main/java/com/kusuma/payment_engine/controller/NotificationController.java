@@ -44,7 +44,7 @@ public class NotificationController {
 	}
 
 	@GetMapping("/unread-count")
-	public long getUnreadCount() {
-		return notificationService.getUnreadNotificationCount();
+	public ResponseEntity<Long> getUnreadCount() {
+		return ResponseEntity.ok(notificationService.getUnreadNotificationCount());
 	}
 }

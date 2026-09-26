@@ -22,9 +22,11 @@ import com.kusuma.payment_engine.exception.SamePasswordException;
 import com.kusuma.payment_engine.exception.UserNotFoundException;
 import com.kusuma.payment_engine.repository.UserRepository;
 import com.kusuma.payment_engine.service.AuditLogService;
+import com.kusuma.payment_engine.service.EmailService;
 import com.kusuma.payment_engine.service.NotificationService;
 import com.kusuma.payment_engine.service.UserService;
 import com.kusuma.payment_engine.util.AccountValidationUtil;
+import com.kusuma.payment_engine.util.EmailTemplateUtil;
 
 import lombok.RequiredArgsConstructor;
 
@@ -36,7 +38,7 @@ public class UserServiceImpl implements UserService {
 	private final PasswordEncoder passwordEncoder;
 	private final AuditLogService auditLogService;
 	private final NotificationService notificationService;
-
+	private final EmailService emailService;
 	@Override
 	public UserProfileResponse getCurrentUser() {
 		User user = getAuthenticatedUser();
@@ -87,7 +89,9 @@ public class UserServiceImpl implements UserService {
 		auditLogService.log(user.getEmail(), AuditAction.CHANGE_PASSWORD, AuditEntityType.USER, user.getId(),
 				"Password changed");
 		notificationService.createNotification(user, "Password Changed", "Your password has been changed successfully.",
-				NotificationType.SECURITY, true);
+				NotificationType.SECURITY, false);
+		String emailBody = EmailTemplateUtil.passwordChangedEmail(user.getFullName());
+		emailService.sendEmail(user.getEmail(), "Payment Engine - Password Changed", emailBody);
 	}
 
 	private User getAuthenticatedUser() {
