@@ -100,9 +100,8 @@ public class ScheduledTransferProcessor {
 		auditLogService.log(senderUser.getEmail(), AuditAction.EXECUTE_SCHEDULED_TRANSFER, AuditEntityType.TRANSACTION,
 				transaction.getId(), "Scheduled transfer executed");
 		scheduledTransfer.setExecutedAt(LocalDateTime.now());
-
+		scheduledTransfer.setFailureReason(null);
 		updateNextExecutionDate(scheduledTransfer);
-
 		scheduledTransferRepository.save(scheduledTransfer);
 	}
 

@@ -4,6 +4,8 @@ public enum ScheduledTransferStatus {
 
 	PENDING,
 
+	PAUSED,
+	
 	COMPLETED,
 
 	FAILED,

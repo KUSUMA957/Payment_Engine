@@ -17,6 +17,7 @@ import com.kusuma.payment_engine.enums.AuditAction;
 import com.kusuma.payment_engine.enums.AuditEntityType;
 import com.kusuma.payment_engine.enums.NotificationType;
 import com.kusuma.payment_engine.enums.Role;
+import com.kusuma.payment_engine.enums.ScheduledTransferStatus;
 import com.kusuma.payment_engine.exception.AccountNotFoundException;
 import com.kusuma.payment_engine.exception.BeneficiaryNotFoundException;
 import com.kusuma.payment_engine.exception.DuplicateBeneficiaryException;
@@ -26,6 +27,7 @@ import com.kusuma.payment_engine.exception.UnauthorizedTransactionAccessExceptio
 import com.kusuma.payment_engine.exception.UserNotFoundException;
 import com.kusuma.payment_engine.repository.AccountRepository;
 import com.kusuma.payment_engine.repository.BeneficiaryRepository;
+import com.kusuma.payment_engine.repository.ScheduledTransferRepository;
 import com.kusuma.payment_engine.repository.UserRepository;
 import com.kusuma.payment_engine.service.AuditLogService;
 import com.kusuma.payment_engine.service.BeneficiaryService;
@@ -41,7 +43,7 @@ public class BeneficiaryServiceImpl implements BeneficiaryService {
 	private final BeneficiaryRepository beneficiaryRepository;
 	private final AccountRepository accountRepository;
 	private final UserRepository userRepository;
-
+	private final ScheduledTransferRepository scheduledTransferRepository;
 	private final AuditLogService auditLogService;
 	private final NotificationService notificationService;
 
@@ -52,6 +54,9 @@ public class BeneficiaryServiceImpl implements BeneficiaryService {
 		Account myAcc = getUserAccount(user);
 		validateBeneficiaryOperation(user, myAcc);
 		String nickname = request.nickname().trim();
+		if (nickname.isBlank()) {
+			throw new InvalidTransactionException("Nickname cannot be blank");
+		}
 		Account beneficiaryAccount = accountRepository.findByAccountNumber(request.accountNumber())
 				.orElseThrow(() -> new AccountNotFoundException("Account not found"));
 		if (myAcc.getId().equals(beneficiaryAccount.getId())) {
@@ -101,6 +106,9 @@ public class BeneficiaryServiceImpl implements BeneficiaryService {
 		Beneficiary beneficiary = beneficiaryRepository.findByIdAndOwnerUser(beneficiaryId, user)
 				.orElseThrow(() -> new BeneficiaryNotFoundException("Beneficiary not found"));
 		String nickname = request.nickname().trim();
+		if (nickname.isBlank()) {
+			throw new InvalidTransactionException("Nickname cannot be blank");
+		}
 		if (beneficiary.getNickname().equalsIgnoreCase(nickname)) {
 			throw new NoChangesDetectedException("No changes detected");
 		}
@@ -122,6 +130,12 @@ public class BeneficiaryServiceImpl implements BeneficiaryService {
 		Beneficiary beneficiary = beneficiaryRepository.findByIdAndOwnerUser(beneficiaryId, user)
 				.orElseThrow(() -> new BeneficiaryNotFoundException("Beneficiary not found"));
 		String nickname = beneficiary.getNickname();
+		boolean hasActiveScheduledTransfers = scheduledTransferRepository.existsByBeneficiaryAndStatusIn(beneficiary,
+				List.of(ScheduledTransferStatus.PENDING, ScheduledTransferStatus.PAUSED));
+		if (hasActiveScheduledTransfers) {
+			throw new InvalidTransactionException(
+					"Beneficiary cannot be deleted because active scheduled transfers exist");
+		}
 		auditLogService.log(user.getEmail(), AuditAction.DELETE_BENEFICIARY, AuditEntityType.ACCOUNT,
 				beneficiary.getId(), "Beneficiary deleted: " + nickname);
 		beneficiaryRepository.delete(beneficiary);
