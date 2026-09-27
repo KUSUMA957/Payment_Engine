@@ -166,8 +166,35 @@ public class TransactionServiceImpl implements TransactionService {
 	public List<TransactionResponse> getMyTransactions() {
 		User user = getAuthenticatedUser();
 		Account account = getUserAccount(user);
-		return transactionRepository.findBySenderAccountOrReceiverAccount(account, account).stream()
-				.map(this::mapToResponse).toList();
+		AccountValidationUtil.validateUserStatus(user);
+		return transactionRepository.findBySenderAccountOrReceiverAccountOrderByProcessedAtDesc(account, account)
+				.stream().map(this::mapToResponse).toList();
+	}
+
+	@Override
+	public TransactionResponse getTransactionByReference(String transactionReference) {
+		User user = getAuthenticatedUser();
+		AccountValidationUtil.validateUserStatus(user);
+		Account account = getUserAccount(user);
+		Transaction transaction = transactionRepository.findByTransactionReference(transactionReference)
+				.orElseThrow(() -> new TransactionNotFoundException("Transaction not found"));
+		boolean belongsToUser =
+				(transaction.getSenderAccount() != null && transaction.getSenderAccount().getId().equals(account.getId()))
+						||
+				(transaction.getReceiverAccount() != null && transaction.getReceiverAccount().getId().equals(account.getId()));
+		if (!belongsToUser) {
+			throw new UnauthorizedTransactionAccessException("You are not authorized to access this transaction");
+		}
+		return mapToResponse(transaction);
+	}
+
+	@Override
+	public List<TransactionResponse> getMiniStatement() {
+		User user = getAuthenticatedUser();
+		Account account = getUserAccount(user);
+		AccountValidationUtil.validateUserStatus(user);
+		return transactionRepository.findTop10BySenderAccountOrReceiverAccountOrderByProcessedAtDesc(account, account)
+				.stream().map(this::mapToResponse).toList();
 	}
 
 	@Override

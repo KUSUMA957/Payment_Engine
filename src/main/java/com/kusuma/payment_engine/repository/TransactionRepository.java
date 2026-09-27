@@ -13,4 +13,10 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 	Optional<Transaction> findByTransactionReference(String reference);
 
 	List<Transaction> findBySenderAccountOrReceiverAccount(Account sender, Account receiver);
+
+	List<Transaction> findBySenderAccountOrReceiverAccountOrderByProcessedAtDesc(Account senderAccount,
+			Account receiverAccount);
+
+	List<Transaction> findTop10BySenderAccountOrReceiverAccountOrderByProcessedAtDesc(Account senderAccount,
+			Account receiverAccount);
 }

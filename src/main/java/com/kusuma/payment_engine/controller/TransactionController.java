@@ -56,4 +56,9 @@ public class TransactionController {
 			@Valid @RequestBody BeneficiaryTransferRequest request) {
 		return ResponseEntity.ok(transactionService.transferToBeneficiary(request));
 	}
+
+	@GetMapping("/mini-statement")
+	public ResponseEntity<List<TransactionResponse>> getMiniStatement() {
+		return ResponseEntity.ok(transactionService.getMiniStatement());
+	}
 }

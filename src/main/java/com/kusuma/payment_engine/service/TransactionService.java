@@ -20,4 +20,8 @@ public interface TransactionService {
 	TransactionResponse withdraw(TransactionAmountRequest request);
 
 	TransactionResponse transferToBeneficiary(BeneficiaryTransferRequest request);
+
+	TransactionResponse getTransactionByReference(String transactionReference);
+
+	List<TransactionResponse> getMiniStatement();
 }
