@@ -1,0 +1,22 @@
+package com.kusuma.payment_engine.repository;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.kusuma.payment_engine.entity.ScheduledTransfer;
+import com.kusuma.payment_engine.entity.User;
+import com.kusuma.payment_engine.enums.ScheduledTransferStatus;
+
+public interface ScheduledTransferRepository extends JpaRepository<ScheduledTransfer, Long> {
+
+	List<ScheduledTransfer> findByUserOrderByScheduledAtDesc(User user);
+
+	Optional<ScheduledTransfer> findByIdAndUser(Long id, User user);
+
+	List<ScheduledTransfer> findByStatusAndScheduledAtLessThanEqual(ScheduledTransferStatus status,
+			LocalDate localDate);
+}
