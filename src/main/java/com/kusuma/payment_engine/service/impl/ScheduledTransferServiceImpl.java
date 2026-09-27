@@ -16,6 +16,7 @@ import com.kusuma.payment_engine.enums.AuditAction;
 import com.kusuma.payment_engine.enums.AuditEntityType;
 import com.kusuma.payment_engine.enums.NotificationType;
 import com.kusuma.payment_engine.enums.ScheduledTransferStatus;
+import com.kusuma.payment_engine.enums.TransferFrequency;
 import com.kusuma.payment_engine.exception.AccountNotFoundException;
 import com.kusuma.payment_engine.exception.BeneficiaryNotFoundException;
 import com.kusuma.payment_engine.exception.InvalidTransactionException;
@@ -53,14 +54,28 @@ public class ScheduledTransferServiceImpl implements ScheduledTransferService {
 		}
 		Beneficiary beneficiary = beneficiaryRepository.findByIdAndOwnerUser(request.beneficiaryId(), user)
 				.orElseThrow(() -> new BeneficiaryNotFoundException("Beneficiary not found"));
+		AccountValidationUtil.validateAccountForTransactions(beneficiary.getBeneficiaryAccount());
+		if (request.frequency() == TransferFrequency.ONE_TIME && request.endDate() != null) {
+			throw new InvalidTransactionException("End date is not allowed for ONE_TIME transfers");
+		}
+		if (request.frequency() != TransferFrequency.ONE_TIME && request.endDate() == null) {
+			throw new InvalidTransactionException("End date is required for recurring transfers");
+		}
+		if (request.endDate() != null && request.endDate().isBefore(request.scheduledAt())) {
+			throw new InvalidTransactionException("End date cannot be before scheduled date");
+		}
 		ScheduledTransfer transfer = ScheduledTransfer.builder().user(user).beneficiary(beneficiary)
 				.amount(request.amount()).description(request.description()).scheduledAt(request.scheduledAt())
+				.nextExecutionDate(request.scheduledAt()).frequency(request.frequency()).endDate(request.endDate())
 				.status(ScheduledTransferStatus.PENDING).build();
 		transfer = scheduledTransferRepository.save(transfer);
 		auditLogService.log(user.getEmail(), AuditAction.SCHEDULE_TRANSFER, AuditEntityType.TRANSACTION,
 				transfer.getId(), "Scheduled transfer to " + beneficiary.getNickname());
-		notificationService.createNotification(user, "Scheduled Transfer Created",
-				"Transfer scheduled for " + request.scheduledAt(), NotificationType.TRANSACTION, false);
+		String message = "Scheduled transfer created. " + "Amount: ₹" + request.amount() + ", Beneficiary: "
+				+ beneficiary.getNickname() + ", Frequency: " + request.frequency() + ", Start Date: "
+				+ request.scheduledAt() + (request.endDate() != null ? ", End Date: " + request.endDate() : "");
+		notificationService.createNotification(user, "Scheduled Transfer Created", message,
+				NotificationType.TRANSACTION, false);
 		return mapToResponse(transfer);
 	}
 
@@ -107,7 +122,9 @@ public class ScheduledTransferServiceImpl implements ScheduledTransferService {
 				.beneficiaryNickname(transfer.getBeneficiary().getNickname())
 				.beneficiaryAccountNumber(transfer.getBeneficiary().getBeneficiaryAccount().getAccountNumber())
 				.amount(transfer.getAmount()).description(transfer.getDescription())
-				.scheduledAt(transfer.getScheduledAt()).executedAt(transfer.getExecutedAt())
-				.failureReason(transfer.getFailureReason()).status(transfer.getStatus()).build();
+				.scheduledAt(transfer.getScheduledAt()).nextExecutionDate(transfer.getNextExecutionDate())
+				.endDate(transfer.getEndDate()).executedAt(transfer.getExecutedAt())
+				.failureReason(transfer.getFailureReason()).frequency(transfer.getFrequency())
+				.status(transfer.getStatus()).build();
 	}
 }

@@ -19,6 +19,7 @@ import com.kusuma.payment_engine.enums.NotificationType;
 import com.kusuma.payment_engine.enums.ScheduledTransferStatus;
 import com.kusuma.payment_engine.enums.TransactionStatus;
 import com.kusuma.payment_engine.enums.TransactionType;
+import com.kusuma.payment_engine.enums.TransferFrequency;
 import com.kusuma.payment_engine.exception.InsufficientBalanceException;
 import com.kusuma.payment_engine.repository.AccountRepository;
 import com.kusuma.payment_engine.repository.ScheduledTransferRepository;
@@ -48,14 +49,17 @@ public class ScheduledTransferProcessor {
 	@Transactional
 	public void processScheduledTransfers() {
 		List<ScheduledTransfer> transfers = scheduledTransferRepository
-				.findByStatusAndScheduledAtLessThanEqual(ScheduledTransferStatus.PENDING, LocalDate.now());
+				.findByStatusAndNextExecutionDateLessThanEqual(ScheduledTransferStatus.PENDING, LocalDate.now());
 		for (ScheduledTransfer transfer : transfers) {
 			try {
 				executeTransfer(transfer);
-
 			} catch (Exception ex) {
-				transfer.setStatus(ScheduledTransferStatus.FAILED);
 				transfer.setFailureReason(ex.getMessage());
+				if (transfer.getFrequency() == TransferFrequency.ONE_TIME) {
+					transfer.setStatus(ScheduledTransferStatus.FAILED);
+				} else {
+					updateNextExecutionDate(transfer);
+				}
 				scheduledTransferRepository.save(transfer);
 				notificationService.createNotification(transfer.getUser(), "Scheduled Transfer Failed", ex.getMessage(),
 						NotificationType.TRANSACTION, false);
@@ -95,8 +99,10 @@ public class ScheduledTransferProcessor {
 		emailService.sendEmail(receiverUser.getEmail(), "Payment Engine - Amount Credited", creditEmailBody);
 		auditLogService.log(senderUser.getEmail(), AuditAction.EXECUTE_SCHEDULED_TRANSFER, AuditEntityType.TRANSACTION,
 				transaction.getId(), "Scheduled transfer executed");
-		scheduledTransfer.setStatus(ScheduledTransferStatus.COMPLETED);
 		scheduledTransfer.setExecutedAt(LocalDateTime.now());
+
+		updateNextExecutionDate(scheduledTransfer);
+
 		scheduledTransferRepository.save(scheduledTransfer);
 	}
 
@@ -111,5 +117,21 @@ public class ScheduledTransferProcessor {
 				.status(TransactionStatus.SUCCESS).description(transfer.getDescription())
 				.processedAt(LocalDateTime.now()).build();
 		return transactionRepository.save(transaction);
+	}
+
+	private void updateNextExecutionDate(ScheduledTransfer transfer) {
+		switch (transfer.getFrequency()) {
+		case ONE_TIME -> {
+			transfer.setStatus(ScheduledTransferStatus.COMPLETED);
+		}
+		case DAILY -> transfer.setNextExecutionDate(transfer.getNextExecutionDate().plusDays(1));
+		case WEEKLY -> transfer.setNextExecutionDate(transfer.getNextExecutionDate().plusWeeks(1));
+		case MONTHLY -> transfer.setNextExecutionDate(transfer.getNextExecutionDate().plusMonths(1));
+		case YEARLY -> transfer.setNextExecutionDate(transfer.getNextExecutionDate().plusYears(1));
+		}
+		if (transfer.getFrequency() != TransferFrequency.ONE_TIME && transfer.getEndDate() != null
+				&& transfer.getNextExecutionDate().isAfter(transfer.getEndDate())) {
+			transfer.setStatus(ScheduledTransferStatus.COMPLETED);
+		}
 	}
 }

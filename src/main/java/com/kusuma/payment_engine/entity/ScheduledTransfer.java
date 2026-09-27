@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import com.kusuma.payment_engine.enums.ScheduledTransferStatus;
+import com.kusuma.payment_engine.enums.TransferFrequency;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -46,6 +47,15 @@ public class ScheduledTransfer extends BaseEntity {
 	@Column(nullable = false)
 	private LocalDate scheduledAt;
 
+	@Column(nullable = false)
+	private LocalDate nextExecutionDate;
+	
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private TransferFrequency frequency;
+	
+	private LocalDate endDate;
+	
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private ScheduledTransferStatus status;

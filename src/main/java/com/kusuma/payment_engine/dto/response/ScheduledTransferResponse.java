@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import com.kusuma.payment_engine.enums.ScheduledTransferStatus;
+import com.kusuma.payment_engine.enums.TransferFrequency;
 
 import lombok.Builder;
 
@@ -25,9 +26,16 @@ public record ScheduledTransferResponse(
 
 		LocalDate scheduledAt,
 
+		LocalDate nextExecutionDate,
+
+		LocalDate endDate,
+
 		LocalDateTime executedAt,
 
 		String failureReason,
 
+		TransferFrequency frequency,
+
 		ScheduledTransferStatus status) {
+
 }

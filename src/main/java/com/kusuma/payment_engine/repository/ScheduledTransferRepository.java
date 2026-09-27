@@ -17,6 +17,6 @@ public interface ScheduledTransferRepository extends JpaRepository<ScheduledTran
 
 	Optional<ScheduledTransfer> findByIdAndUser(Long id, User user);
 
-	List<ScheduledTransfer> findByStatusAndScheduledAtLessThanEqual(ScheduledTransferStatus status,
-			LocalDate localDate);
+	List<ScheduledTransfer> findByStatusAndNextExecutionDateLessThanEqual(ScheduledTransferStatus status,
+			LocalDate nextExecutionDate);
 }
