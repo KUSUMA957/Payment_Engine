@@ -182,4 +182,36 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
 			""")
 	BigDecimal getMonthlyTransferAmount(@Param("account") Account account);
 
+	@Query("""
+			SELECT COUNT(t)
+			FROM Transaction t
+			WHERE
+			t.senderAccount = :account
+			AND t.transactionType = 'TRANSFER'
+			AND t.status = 'SUCCESS'
+			AND t.processedAt >= :fromTime
+			""")
+	long countTransfersSince(@Param("account") Account account, @Param("fromTime") LocalDateTime fromTime);
+
+	@Query("""
+			SELECT COALESCE(SUM(t.amount),0)
+			FROM Transaction t
+			WHERE
+			t.senderAccount = :account
+			AND t.transactionType='TRANSFER'
+			AND t.status='SUCCESS'
+			AND DATE(t.processedAt)=CURRENT_DATE
+			""")
+	BigDecimal getTodayTotalTransferAmount(@Param("account") Account account);
+
+	@Query("""
+			SELECT COALESCE(AVG(t.amount),0)
+			FROM Transaction t
+			WHERE
+			t.senderAccount = :account
+			AND t.status='SUCCESS'
+			AND t.transactionType='TRANSFER'
+			""")
+	BigDecimal getAverageTransferAmount(@Param("account") Account account);
+
 }

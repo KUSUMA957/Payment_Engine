@@ -44,6 +44,7 @@ import com.kusuma.payment_engine.repository.UserRepository;
 import com.kusuma.payment_engine.service.AuditLogService;
 import com.kusuma.payment_engine.service.CurrentUserService;
 import com.kusuma.payment_engine.service.EmailService;
+import com.kusuma.payment_engine.service.FraudDetectionService;
 import com.kusuma.payment_engine.service.NotificationService;
 import com.kusuma.payment_engine.service.TransactionLimitService;
 import com.kusuma.payment_engine.service.TransactionService;
@@ -67,6 +68,7 @@ public class TransactionServiceImpl implements TransactionService {
 	private final EmailService emailService;
 	private final CurrentUserService currentUserService;
 	private final TransactionLimitService transactionLimitService;
+	private final FraudDetectionService fraudDetectionService;
 
 	@Override
 	@Transactional
@@ -92,6 +94,7 @@ public class TransactionServiceImpl implements TransactionService {
 			accountRepository.save(receiver);
 			Transaction transaction = createTransaction(sender, receiver, request.amount(), sender.getCurrency(),
 					TransactionType.TRANSFER, request.description());
+			fraudDetectionService.evaluateTransaction(transaction);
 			auditLogService.log(user.getEmail(), AuditAction.TRANSFER, AuditEntityType.TRANSACTION, transaction.getId(),
 					"Transferred " + request.amount() + " to account " + receiver.getAccountNumber());
 			User receiverUser = receiver.getUser();
@@ -160,6 +163,7 @@ public class TransactionServiceImpl implements TransactionService {
 			accountRepository.save(account);
 			Transaction transaction = createTransaction(account, null, request.amount(), account.getCurrency(),
 					TransactionType.WITHDRAWAL, request.description());
+			fraudDetectionService.evaluateTransaction(transaction);
 			auditLogService.log(user.getEmail(), AuditAction.WITHDRAW, AuditEntityType.TRANSACTION, transaction.getId(),
 					"Withdrawn " + request.amount());
 			notificationService.createNotification(user, "Withdrawal Successful",
@@ -230,6 +234,7 @@ public class TransactionServiceImpl implements TransactionService {
 			accountRepository.save(receiver);
 			Transaction transaction = createTransaction(sender, receiver, request.amount(), sender.getCurrency(),
 					TransactionType.TRANSFER, request.description());
+			fraudDetectionService.evaluateTransaction(transaction);
 			auditLogService.log(user.getEmail(), AuditAction.TRANSFER, AuditEntityType.TRANSACTION, transaction.getId(),
 					"Transferred " + request.amount() + " to beneficiary " + beneficiary.getNickname() + " ("
 							+ receiver.getAccountNumber() + ")");

@@ -26,6 +26,7 @@ import com.kusuma.payment_engine.repository.ScheduledTransferRepository;
 import com.kusuma.payment_engine.repository.TransactionRepository;
 import com.kusuma.payment_engine.service.AuditLogService;
 import com.kusuma.payment_engine.service.EmailService;
+import com.kusuma.payment_engine.service.FraudDetectionService;
 import com.kusuma.payment_engine.service.NotificationService;
 import com.kusuma.payment_engine.service.TransactionLimitService;
 import com.kusuma.payment_engine.util.AccountValidationUtil;
@@ -45,7 +46,8 @@ public class ScheduledTransferProcessor {
 	private final AuditLogService auditLogService;
 	private final NotificationService notificationService;
 	private final EmailService emailService;
-	
+	private final FraudDetectionService fraudDetectionService;
+
 	@Scheduled(fixedRate = 60000)
 	@Transactional
 	public void processScheduledTransfers() {
@@ -84,6 +86,7 @@ public class ScheduledTransferProcessor {
 		accountRepository.save(sender);
 		accountRepository.save(receiver);
 		Transaction transaction = createTransaction(sender, receiver, scheduledTransfer);
+		fraudDetectionService.evaluateTransaction(transaction);
 		User receiverUser = receiver.getUser();
 		notificationService.createNotification(senderUser, "Amount Debited",
 				"Scheduled transfer of ₹" + scheduledTransfer.getAmount() + " executed successfully.",
