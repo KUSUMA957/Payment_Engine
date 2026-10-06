@@ -31,8 +31,11 @@ public class SecurityConfig {
 								.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication Required"))
 						.accessDeniedHandler((request, response, accessDeniedException) -> response
 								.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied")))
-				.authorizeHttpRequests(auth -> auth.requestMatchers("/auth/**", "/swagger-ui/**", "/v3/api-docs/**","/error")
-						.permitAll().anyRequest().authenticated())
+				.authorizeHttpRequests(auth -> auth
+						.requestMatchers("/auth/**", "/swagger-ui/**", "/v3/api-docs/**","/error").permitAll()
+						.requestMatchers("/admin/**")
+						.hasRole("ADMIN")
+						.anyRequest().authenticated())
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 		return http.build();
 	}

@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.kusuma.payment_engine.constants.SystemConstants;
+import com.kusuma.payment_engine.dto.request.AdminStatementFilterRequest;
 import com.kusuma.payment_engine.dto.request.BeneficiaryTransferRequest;
 import com.kusuma.payment_engine.dto.request.StatementFilterRequest;
 import com.kusuma.payment_engine.dto.request.TransactionAmountRequest;
@@ -295,6 +296,83 @@ public class TransactionServiceImpl implements TransactionService {
 		return transactions.map(this::mapToResponse);
 	}
 
+	@Override
+	public Page<TransactionResponse> getTransactionsByUser(Long userId, int page, int size) {
+		User admin = getValidatedAdmin();
+		if (page < 0) {
+			throw new InvalidTransactionException("Page number cannot be negative");
+		}
+		if (size <= 0) {
+			throw new InvalidTransactionException("Page size must be greater than zero");
+		}
+		if (size > 100) {
+			throw new InvalidTransactionException("Maximum page size is 100");
+		}
+		User user = userRepository.findById(userId).orElseThrow(() -> new UserNotFoundException("User not found"));
+		Account account = accountRepository.findByUser(user)
+				.orElseThrow(() -> new AccountNotFoundException("Account not found"));
+		auditLogService.log(admin.getEmail(), AuditAction.ADMIN_VIEW_TRANSACTION, AuditEntityType.TRANSACTION,
+				account.getId(), "Viewed transactions for user " + user.getEmail());
+		Page<Transaction> transactions = transactionRepository.findAll(
+				Specification.where(TransactionSpecification.belongsToUser(account)),
+				PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "processedAt")));
+		return transactions.map(this::mapToResponse);
+	}
+
+	@Override
+	public TransactionResponse getAdminTransactionByReference(String reference) {
+		User admin = getValidatedAdmin();
+		Transaction transaction = transactionRepository.findByTransactionReference(reference)
+				.orElseThrow(() -> new TransactionNotFoundException("Transaction not found"));
+		auditLogService.log(admin.getEmail(), AuditAction.ADMIN_VIEW_TRANSACTION, AuditEntityType.TRANSACTION,
+				transaction.getId(), "Viewed transaction " + reference);
+		return mapToResponse(transaction);
+	}
+
+	@Override
+	public Page<TransactionResponse> getAdminStatement(AdminStatementFilterRequest request) {
+		User admin = getValidatedAdmin();
+		if (request.fromDate() != null && request.toDate() != null && request.fromDate().isAfter(request.toDate())) {
+			throw new InvalidTransactionException("From date cannot be after To date");
+		}
+		int page = request.page() == null ? 0 : request.page();
+		int size = request.size() == null ? 20 : request.size();
+		if (page < 0) {
+			throw new InvalidTransactionException("Page number cannot be negative");
+		}
+		if (size <= 0) {
+			throw new InvalidTransactionException("Page size must be greater than zero");
+		}
+		if (size > 100) {
+			throw new InvalidTransactionException("Maximum page size is 100");
+		}
+		Specification<Transaction> spec = (root, query, cb) -> cb.conjunction();
+		if (request.userId() != null) {
+			User user = userRepository.findById(request.userId())
+					.orElseThrow(() -> new UserNotFoundException("User not found"));
+			Account account = accountRepository.findByUser(user)
+					.orElseThrow(() -> new AccountNotFoundException("Account not found"));
+			spec = spec.and(TransactionSpecification.belongsToUser(account));
+		}
+		if (request.fromDate() != null) {
+			spec = spec.and(TransactionSpecification.fromDate(request.fromDate().atStartOfDay()));
+		}
+		if (request.toDate() != null) {
+			spec = spec.and(TransactionSpecification.toDate(request.toDate().atTime(23, 59, 59)));
+		}
+		if (request.transactionType() != null) {
+			spec = spec.and(TransactionSpecification.type(request.transactionType()));
+		}
+		if (request.transactionStatus() != null) {
+			spec = spec.and(TransactionSpecification.status(request.transactionStatus()));
+		}
+		Page<Transaction> transactions = transactionRepository.findAll(spec,
+				PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "processedAt")));
+		auditLogService.log(admin.getEmail(), AuditAction.ADMIN_VIEW_TRANSACTION, AuditEntityType.TRANSACTION, null,
+				"Generated admin transaction statement");
+		return transactions.map(this::mapToResponse);
+	}
+
 	private User getAuthenticatedUser() {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		return userRepository.findByEmail(authentication.getName())
@@ -339,5 +417,14 @@ public class TransactionServiceImpl implements TransactionService {
 				.amount(transaction.getAmount()).currency(transaction.getCurrency())
 				.transactionType(transaction.getTransactionType()).status(transaction.getStatus())
 				.description(transaction.getDescription()).processedAt(transaction.getProcessedAt()).build();
+	}
+
+	private User getValidatedAdmin() {
+		User admin = getAuthenticatedUser();
+		AccountValidationUtil.validateUserStatus(admin);
+		if (admin.getRole() != Role.ADMIN) {
+			throw new UnauthorizedTransactionAccessException("Admin access required");
+		}
+		return admin;
 	}
 }

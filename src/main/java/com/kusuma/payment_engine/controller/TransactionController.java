@@ -1,10 +1,13 @@
 package com.kusuma.payment_engine.controller;
 
 import java.time.LocalDate;
-
 import java.util.List;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,17 +16,22 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
+
+import com.kusuma.payment_engine.dto.request.AdminStatementFilterRequest;
 import com.kusuma.payment_engine.dto.request.BeneficiaryTransferRequest;
 import com.kusuma.payment_engine.dto.request.StatementFilterRequest;
 import com.kusuma.payment_engine.dto.request.TransactionAmountRequest;
 import com.kusuma.payment_engine.dto.request.TransferRequest;
 import com.kusuma.payment_engine.dto.response.TransactionResponse;
+import com.kusuma.payment_engine.entity.Account;
+import com.kusuma.payment_engine.enums.AuditAction;
+import com.kusuma.payment_engine.enums.AuditEntityType;
 import com.kusuma.payment_engine.enums.TransactionStatus;
 import com.kusuma.payment_engine.enums.TransactionType;
+import com.kusuma.payment_engine.exception.UserNotFoundException;
 import com.kusuma.payment_engine.service.PdfStatementService;
 import com.kusuma.payment_engine.service.TransactionService;
+import com.kusuma.payment_engine.specification.TransactionSpecification;
 
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
@@ -96,4 +104,5 @@ public class TransactionController {
 		return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=statement.pdf")
 				.contentType(MediaType.APPLICATION_PDF).body(pdf);
 	}
+
 }

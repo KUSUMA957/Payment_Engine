@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.data.domain.Page;
 
+import com.kusuma.payment_engine.dto.request.AdminStatementFilterRequest;
 import com.kusuma.payment_engine.dto.request.BeneficiaryTransferRequest;
 import com.kusuma.payment_engine.dto.request.StatementFilterRequest;
 import com.kusuma.payment_engine.dto.request.TransactionAmountRequest;
@@ -27,7 +28,12 @@ public interface TransactionService {
 	TransactionResponse getTransactionByReference(String transactionReference);
 
 	List<TransactionResponse> getMiniStatement();
-	
-	Page<TransactionResponse> getStatement(
-	        StatementFilterRequest request);
+
+	Page<TransactionResponse> getStatement(StatementFilterRequest request);
+
+	Page<TransactionResponse> getAdminStatement(AdminStatementFilterRequest request);
+
+	Page<TransactionResponse> getTransactionsByUser(Long userId, int page, int size);
+
+	TransactionResponse getAdminTransactionByReference(String reference);
 }

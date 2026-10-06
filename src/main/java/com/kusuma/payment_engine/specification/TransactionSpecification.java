@@ -31,4 +31,11 @@ public class TransactionSpecification {
 	public static Specification<Transaction> status(TransactionStatus status) {
 		return (root, query, cb) -> cb.equal(root.get("status"), status);
 	}
+
+	public static Specification<Transaction> belongsToUser(Account account) {
+		return (root, query, cb) -> cb.or(
+				cb.equal(root.get("senderAccount"), account),
+				cb.equal(root.get("receiverAccount"), account));
+	}
+
 }
