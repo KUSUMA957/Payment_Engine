@@ -72,7 +72,7 @@ public class FraudDetectionServiceImpl implements FraudDetectionService {
 			return;
 		}
 		FraudAlert alert = FraudAlert.builder().user(user).transaction(transaction).fraudType(fraudType)
-				.riskLevel(riskLevel).reason(reason).resolved(false).build();
+				.riskLevel(riskLevel).riskScore(getRiskScore(fraudType)).reason(reason).resolved(false).build();
 		fraudAlertRepository.save(alert);
 	}
 
@@ -119,6 +119,15 @@ public class FraudDetectionServiceImpl implements FraudDetectionService {
 						RiskLevel.MEDIUM, "Transaction amount is above 90% of configured transfer limit");
 			}
 		});
+	}
+
+	private int getRiskScore(FraudType fraudType) {
+		return switch (fraudType) {
+		case LIMIT_ABUSE -> 20;
+		case HIGH_VALUE_ACTIVITY -> 30;
+		case TRANSFER_VELOCITY -> 40;
+		case SPENDING_SPIKE -> 50;
+		};
 	}
 
 }

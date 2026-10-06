@@ -37,4 +37,7 @@ public class FraudAlert extends BaseEntity {
 
 	@Column(nullable = false)
 	private boolean resolved;
+	
+	@Column(nullable = false)
+	private Integer riskScore;
 }
