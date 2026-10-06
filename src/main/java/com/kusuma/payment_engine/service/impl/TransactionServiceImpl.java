@@ -4,6 +4,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -12,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.kusuma.payment_engine.constants.SystemConstants;
 import com.kusuma.payment_engine.dto.request.BeneficiaryTransferRequest;
+import com.kusuma.payment_engine.dto.request.StatementFilterRequest;
 import com.kusuma.payment_engine.dto.request.TransactionAmountRequest;
 import com.kusuma.payment_engine.dto.request.TransferRequest;
 import com.kusuma.payment_engine.dto.response.TransactionResponse;
@@ -41,6 +46,7 @@ import com.kusuma.payment_engine.service.AuditLogService;
 import com.kusuma.payment_engine.service.EmailService;
 import com.kusuma.payment_engine.service.NotificationService;
 import com.kusuma.payment_engine.service.TransactionService;
+import com.kusuma.payment_engine.specification.TransactionSpecification;
 import com.kusuma.payment_engine.util.AccountValidationUtil;
 import com.kusuma.payment_engine.util.EmailTemplateUtil;
 import com.kusuma.payment_engine.util.TransactionReferenceUtil;
@@ -178,10 +184,10 @@ public class TransactionServiceImpl implements TransactionService {
 		Account account = getUserAccount(user);
 		Transaction transaction = transactionRepository.findByTransactionReference(transactionReference)
 				.orElseThrow(() -> new TransactionNotFoundException("Transaction not found"));
-		boolean belongsToUser =
-				(transaction.getSenderAccount() != null && transaction.getSenderAccount().getId().equals(account.getId()))
-						||
-				(transaction.getReceiverAccount() != null && transaction.getReceiverAccount().getId().equals(account.getId()));
+		boolean belongsToUser = (transaction.getSenderAccount() != null
+				&& transaction.getSenderAccount().getId().equals(account.getId()))
+				|| (transaction.getReceiverAccount() != null
+						&& transaction.getReceiverAccount().getId().equals(account.getId()));
 		if (!belongsToUser) {
 			throw new UnauthorizedTransactionAccessException("You are not authorized to access this transaction");
 		}
@@ -256,6 +262,37 @@ public class TransactionServiceImpl implements TransactionService {
 			throw new UnauthorizedTransactionAccessException("You are not authorized to view this transaction.");
 		}
 		return mapToResponse(transaction);
+	}
+
+	@Override
+	public Page<TransactionResponse> getStatement(StatementFilterRequest request) {
+		if (request.fromDate() != null && request.toDate() != null && request.fromDate().isAfter(request.toDate())) {
+			throw new InvalidTransactionException("From date cannot be after To date");
+		}
+		User user = getAuthenticatedUser();
+		AccountValidationUtil.validateUserStatus(user);
+		Account account = getUserAccount(user);
+		Specification<Transaction> spec = Specification.where(TransactionSpecification.belongsToAccount(account));
+		if (request.fromDate() != null) {
+			spec = spec.and(TransactionSpecification.fromDate(request.fromDate().atStartOfDay()));
+		}
+		if (request.toDate() != null) {
+			spec = spec.and(TransactionSpecification.toDate(request.toDate().atTime(23, 59, 59)));
+		}
+		if (request.transactionType() != null) {
+			spec = spec.and(TransactionSpecification.type(request.transactionType()));
+		}
+		if (request.transactionStatus() != null) {
+			spec = spec.and(TransactionSpecification.status(request.transactionStatus()));
+		}
+		int page = request.page() == null ? 0 : request.page();
+		int size = request.size() == null ? 20 : request.size();
+		if (size > 100) {
+			throw new InvalidTransactionException("Maximum page size is 100");
+		}
+		Page<Transaction> transactions = transactionRepository.findAll(spec,
+				PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "processedAt")));
+		return transactions.map(this::mapToResponse);
 	}
 
 	private User getAuthenticatedUser() {

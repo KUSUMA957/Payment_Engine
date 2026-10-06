@@ -2,7 +2,10 @@ package com.kusuma.payment_engine.service;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+
 import com.kusuma.payment_engine.dto.request.BeneficiaryTransferRequest;
+import com.kusuma.payment_engine.dto.request.StatementFilterRequest;
 import com.kusuma.payment_engine.dto.request.TransactionAmountRequest;
 import com.kusuma.payment_engine.dto.request.TransferRequest;
 import com.kusuma.payment_engine.dto.response.TransactionResponse;
@@ -24,4 +27,7 @@ public interface TransactionService {
 	TransactionResponse getTransactionByReference(String transactionReference);
 
 	List<TransactionResponse> getMiniStatement();
+	
+	Page<TransactionResponse> getStatement(
+	        StatementFilterRequest request);
 }
