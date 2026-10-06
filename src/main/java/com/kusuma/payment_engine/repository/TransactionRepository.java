@@ -12,6 +12,8 @@ import org.springframework.data.repository.query.Param;
 
 import com.kusuma.payment_engine.entity.Account;
 import com.kusuma.payment_engine.entity.Transaction;
+import com.kusuma.payment_engine.entity.TransactionLimit;
+import com.kusuma.payment_engine.enums.TransactionLimitType;
 import com.kusuma.payment_engine.enums.TransactionStatus;
 
 public interface TransactionRepository extends JpaRepository<Transaction, Long>, JpaSpecificationExecutor<Transaction> {
@@ -149,5 +151,35 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
 			GROUP BY t.transactionType
 			""")
 	List<Object[]> getTransactionVolumeByType();
+
+	@Query("""
+			SELECT COALESCE(SUM(t.amount),0)
+			FROM Transaction t
+			WHERE
+			t.senderAccount = :account
+			AND
+			t.transactionType = 'TRANSFER'
+			AND
+			t.status = 'SUCCESS'
+			AND
+			DATE(t.processedAt)=CURRENT_DATE
+			""")
+	BigDecimal getTodayTransferAmount(@Param("account") Account account);
+
+	@Query("""
+			SELECT COALESCE(SUM(t.amount),0)
+			FROM Transaction t
+			WHERE
+			t.senderAccount = :account
+			AND
+			t.transactionType='TRANSFER'
+			AND
+			t.status='SUCCESS'
+			AND
+			YEAR(t.processedAt)=YEAR(CURRENT_DATE)
+			AND
+			MONTH(t.processedAt)=MONTH(CURRENT_DATE)
+			""")
+	BigDecimal getMonthlyTransferAmount(@Param("account") Account account);
 
 }

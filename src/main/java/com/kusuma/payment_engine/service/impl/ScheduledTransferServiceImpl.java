@@ -1,10 +1,10 @@
 package com.kusuma.payment_engine.service.impl;
 
 import java.math.BigDecimal;
+
 import java.time.LocalDate;
 import java.util.List;
 
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import com.kusuma.payment_engine.dto.request.CreateScheduledTransferRequest;
@@ -23,14 +23,14 @@ import com.kusuma.payment_engine.exception.AccountNotFoundException;
 import com.kusuma.payment_engine.exception.BeneficiaryNotFoundException;
 import com.kusuma.payment_engine.exception.InvalidTransactionException;
 import com.kusuma.payment_engine.exception.ScheduledTransferNotFoundException;
-import com.kusuma.payment_engine.exception.UserNotFoundException;
 import com.kusuma.payment_engine.repository.AccountRepository;
 import com.kusuma.payment_engine.repository.BeneficiaryRepository;
 import com.kusuma.payment_engine.repository.ScheduledTransferRepository;
-import com.kusuma.payment_engine.repository.UserRepository;
 import com.kusuma.payment_engine.service.AuditLogService;
+import com.kusuma.payment_engine.service.CurrentUserService;
 import com.kusuma.payment_engine.service.NotificationService;
 import com.kusuma.payment_engine.service.ScheduledTransferService;
+import com.kusuma.payment_engine.service.TransactionLimitService;
 import com.kusuma.payment_engine.util.AccountValidationUtil;
 
 import lombok.RequiredArgsConstructor;
@@ -41,16 +41,18 @@ public class ScheduledTransferServiceImpl implements ScheduledTransferService {
 
 	private final ScheduledTransferRepository scheduledTransferRepository;
 	private final BeneficiaryRepository beneficiaryRepository;
-	private final UserRepository userRepository;
 	private final AccountRepository accountRepository;
 	private final AuditLogService auditLogService;
 	private final NotificationService notificationService;
+	private final TransactionLimitService transactionLimitService;
+	private final CurrentUserService currentUserService;
 
 	@Override
 	public ScheduledTransferResponse scheduleTransfer(CreateScheduledTransferRequest request) {
-		User user = getAuthenticatedUser();
+		User user = currentUserService.getAuthenticatedUser();
 		Account account = getUserAccount(user);
 		AccountValidationUtil.validateUserAndAccountForTransactions(user, account);
+		transactionLimitService.validateScheduledTransferCreation(request.amount());
 		if (request.scheduledAt().isBefore(LocalDate.now())) {
 			throw new InvalidTransactionException("Scheduled date must be in the future");
 		}
@@ -83,14 +85,14 @@ public class ScheduledTransferServiceImpl implements ScheduledTransferService {
 
 	@Override
 	public List<ScheduledTransferResponse> getMyScheduledTransfers() {
-		User user = getAuthenticatedUser();
+		User user = currentUserService.getAuthenticatedUser();
 		return scheduledTransferRepository.findByUserOrderByScheduledAtDesc(user).stream().map(this::mapToResponse)
 				.toList();
 	}
 
 	@Override
 	public ScheduledTransferResponse getScheduledTransfer(Long transferId) {
-		User user = getAuthenticatedUser();
+		User user = currentUserService.getAuthenticatedUser();
 		ScheduledTransfer transfer = scheduledTransferRepository.findByIdAndUser(transferId, user)
 				.orElseThrow(() -> new ScheduledTransferNotFoundException("Scheduled transfer not found"));
 		return mapToResponse(transfer);
@@ -98,7 +100,7 @@ public class ScheduledTransferServiceImpl implements ScheduledTransferService {
 
 	@Override
 	public void cancelScheduledTransfer(Long transferId) {
-		User user = getAuthenticatedUser();
+		User user = currentUserService.getAuthenticatedUser();
 		ScheduledTransfer transfer = scheduledTransferRepository.findByIdAndUser(transferId, user)
 				.orElseThrow(() -> new ScheduledTransferNotFoundException("Scheduled transfer not found"));
 		if (transfer.getStatus() != ScheduledTransferStatus.PENDING) {
@@ -112,7 +114,7 @@ public class ScheduledTransferServiceImpl implements ScheduledTransferService {
 
 	@Override
 	public void pauseTransfer(Long transferId) {
-		User user = getAuthenticatedUser();
+		User user = currentUserService.getAuthenticatedUser();
 		ScheduledTransfer transfer = scheduledTransferRepository.findByIdAndUser(transferId, user)
 				.orElseThrow(() -> new ScheduledTransferNotFoundException("Scheduled transfer not found"));
 		if (transfer.getStatus() != ScheduledTransferStatus.PENDING) {
@@ -126,7 +128,7 @@ public class ScheduledTransferServiceImpl implements ScheduledTransferService {
 
 	@Override
 	public void resumeTransfer(Long transferId) {
-		User user = getAuthenticatedUser();
+		User user = currentUserService.getAuthenticatedUser();
 		ScheduledTransfer transfer = scheduledTransferRepository.findByIdAndUser(transferId, user)
 				.orElseThrow(() -> new ScheduledTransferNotFoundException("Scheduled transfer not found"));
 		if (transfer.getStatus() != ScheduledTransferStatus.PAUSED) {
@@ -143,7 +145,7 @@ public class ScheduledTransferServiceImpl implements ScheduledTransferService {
 
 	@Override
 	public ScheduledTransferResponse updateTransfer(Long transferId, UpdateScheduledTransferRequest request) {
-		User user = getAuthenticatedUser();
+		User user = currentUserService.getAuthenticatedUser();
 		ScheduledTransfer transfer = scheduledTransferRepository.findByIdAndUser(transferId, user)
 				.orElseThrow(() -> new ScheduledTransferNotFoundException("Scheduled transfer not found"));
 		if (transfer.getStatus() != ScheduledTransferStatus.PENDING
@@ -154,6 +156,7 @@ public class ScheduledTransferServiceImpl implements ScheduledTransferService {
 			if (request.amount().compareTo(BigDecimal.ZERO) <= 0) {
 				throw new InvalidTransactionException("Amount must be greater than zero");
 			}
+			transactionLimitService.validateScheduledTransferCreation(request.amount());
 			transfer.setAmount(request.amount());
 		}
 		if (request.description() != null) {
@@ -182,15 +185,10 @@ public class ScheduledTransferServiceImpl implements ScheduledTransferService {
 
 	@Override
 	public List<ScheduledTransferResponse> getUpcomingExecutions() {
-		User user = getAuthenticatedUser();
+		User user = currentUserService.getAuthenticatedUser();
 		return scheduledTransferRepository
 				.findByUserAndStatusOrderByNextExecutionDateAsc(user, ScheduledTransferStatus.PENDING).stream()
 				.map(this::mapToResponse).toList();
-	}
-
-	private User getAuthenticatedUser() {
-		String email = SecurityContextHolder.getContext().getAuthentication().getName();
-		return userRepository.findByEmail(email).orElseThrow(() -> new UserNotFoundException("User not found"));
 	}
 
 	private Account getUserAccount(User user) {

@@ -27,6 +27,7 @@ import com.kusuma.payment_engine.repository.TransactionRepository;
 import com.kusuma.payment_engine.service.AuditLogService;
 import com.kusuma.payment_engine.service.EmailService;
 import com.kusuma.payment_engine.service.NotificationService;
+import com.kusuma.payment_engine.service.TransactionLimitService;
 import com.kusuma.payment_engine.util.AccountValidationUtil;
 import com.kusuma.payment_engine.util.EmailTemplateUtil;
 import com.kusuma.payment_engine.util.TransactionReferenceUtil;
@@ -40,11 +41,11 @@ public class ScheduledTransferProcessor {
 	private final ScheduledTransferRepository scheduledTransferRepository;
 	private final TransactionRepository transactionRepository;
 	private final AccountRepository accountRepository;
-
+	private final TransactionLimitService transactionLimitService;
 	private final AuditLogService auditLogService;
 	private final NotificationService notificationService;
 	private final EmailService emailService;
-
+	
 	@Scheduled(fixedRate = 60000)
 	@Transactional
 	public void processScheduledTransfers() {
@@ -73,6 +74,7 @@ public class ScheduledTransferProcessor {
 		Account sender = getSenderAccount(senderUser);
 		Account receiver = beneficiary.getBeneficiaryAccount();
 		AccountValidationUtil.validateUserAndAccountForTransactions(senderUser, sender);
+		transactionLimitService.validateScheduledTransferExecution(sender, scheduledTransfer.getAmount());
 		AccountValidationUtil.validateAccountForTransactions(receiver);
 		if (sender.getBalance().compareTo(scheduledTransfer.getAmount()) < 0) {
 			throw new InsufficientBalanceException("Insufficient balance for scheduled transfer");

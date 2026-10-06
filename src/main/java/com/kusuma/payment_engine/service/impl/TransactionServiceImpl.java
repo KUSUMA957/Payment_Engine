@@ -1,7 +1,6 @@
 package com.kusuma.payment_engine.service.impl;
 
 import java.math.BigDecimal;
-
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -46,6 +45,7 @@ import com.kusuma.payment_engine.service.AuditLogService;
 import com.kusuma.payment_engine.service.CurrentUserService;
 import com.kusuma.payment_engine.service.EmailService;
 import com.kusuma.payment_engine.service.NotificationService;
+import com.kusuma.payment_engine.service.TransactionLimitService;
 import com.kusuma.payment_engine.service.TransactionService;
 import com.kusuma.payment_engine.specification.TransactionSpecification;
 import com.kusuma.payment_engine.util.AccountValidationUtil;
@@ -66,6 +66,7 @@ public class TransactionServiceImpl implements TransactionService {
 	private final BeneficiaryRepository beneficiaryRepository;
 	private final EmailService emailService;
 	private final CurrentUserService currentUserService;
+	private final TransactionLimitService transactionLimitService;
 
 	@Override
 	@Transactional
@@ -81,6 +82,7 @@ public class TransactionServiceImpl implements TransactionService {
 			if (sender.getAccountNumber().equals(receiver.getAccountNumber())) {
 				throw new InvalidTransactionException("Self transfer is not allowed");
 			}
+			transactionLimitService.validateTransferLimits(sender, request.amount());
 			if (sender.getBalance().compareTo(request.amount()) < 0) {
 				throw new InsufficientBalanceException("Insufficient balance");
 			}
@@ -150,6 +152,7 @@ public class TransactionServiceImpl implements TransactionService {
 			Account account = getUserAccount(user);
 			AccountValidationUtil.validateUserAndAccountForTransactions(user, account);
 			validateAmount(request.amount());
+			transactionLimitService.validateWithdrawalLimit(request.amount());
 			if (account.getBalance().compareTo(request.amount()) < 0) {
 				throw new InsufficientBalanceException("Insufficient balance");
 			}
@@ -217,6 +220,7 @@ public class TransactionServiceImpl implements TransactionService {
 			AccountValidationUtil.validateUserAndAccountForTransactions(user, sender);
 			AccountValidationUtil.validateAccountForTransactions(receiver);
 			validateAmount(request.amount());
+			transactionLimitService.validateBeneficiaryTransferLimits(sender, request.amount());
 			if (sender.getBalance().compareTo(request.amount()) < 0) {
 				throw new InsufficientBalanceException("Insufficient balance");
 			}
@@ -382,6 +386,9 @@ public class TransactionServiceImpl implements TransactionService {
 		if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
 			throw new InvalidTransactionException("Amount must be greater than zero");
 		}
+		if (amount.scale() > 2) {
+			throw new InvalidTransactionException("Maximum 2 decimal places allowed");
+		}
 	}
 
 	private Transaction createTransaction(Account sender, Account receiver, BigDecimal amount,
@@ -421,5 +428,11 @@ public class TransactionServiceImpl implements TransactionService {
 			throw new UnauthorizedTransactionAccessException("Admin access required");
 		}
 		return admin;
+	}
+
+	private void validateMoneyPrecision(BigDecimal amount) {
+		if (amount.scale() > 2) {
+			throw new InvalidTransactionException("Amount cannot contain more than 2 decimal places");
+		}
 	}
 }
