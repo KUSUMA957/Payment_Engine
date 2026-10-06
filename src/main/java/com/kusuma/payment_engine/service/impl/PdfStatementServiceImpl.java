@@ -16,6 +16,7 @@ import com.kusuma.payment_engine.exception.InvalidTransactionException;
 import com.kusuma.payment_engine.repository.AccountRepository;
 import com.kusuma.payment_engine.repository.TransactionRepository;
 import com.kusuma.payment_engine.repository.UserRepository;
+import com.kusuma.payment_engine.service.CurrentUserService;
 import com.kusuma.payment_engine.service.PdfStatementService;
 import com.kusuma.payment_engine.util.AccountValidationUtil;
 import com.lowagie.text.Document;
@@ -36,13 +37,14 @@ public class PdfStatementServiceImpl implements PdfStatementService {
 	private final UserRepository userRepository;
 	private final AccountRepository accountRepository;
 	private final TransactionRepository transactionRepository;
+	private final CurrentUserService currentUserService;
 
 	@Override
 	public byte[] generateStatementPdf(LocalDate fromDate, LocalDate toDate) {
 		if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
 			throw new InvalidTransactionException("From date cannot be after To date");
 		}
-		User user = getAuthenticatedUser();
+		User user = currentUserService.getAuthenticatedUser();
 		AccountValidationUtil.validateUserStatus(user);
 		Account account = accountRepository.findByUser(user)
 				.orElseThrow(() -> new RuntimeException("Account not found"));
@@ -120,10 +122,5 @@ public class PdfStatementServiceImpl implements PdfStatementService {
 	private void addHeader(PdfPTable table, String header) {
 		PdfPCell cell = new PdfPCell(new Phrase(header));
 		table.addCell(cell);
-	}
-
-	private User getAuthenticatedUser() {
-		String email = SecurityContextHolder.getContext().getAuthentication().getName();
-		return userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
 	}
 }

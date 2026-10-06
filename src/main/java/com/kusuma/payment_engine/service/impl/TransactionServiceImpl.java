@@ -1,6 +1,7 @@
 package com.kusuma.payment_engine.service.impl;
 
 import java.math.BigDecimal;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -9,8 +10,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +43,7 @@ import com.kusuma.payment_engine.repository.BeneficiaryRepository;
 import com.kusuma.payment_engine.repository.TransactionRepository;
 import com.kusuma.payment_engine.repository.UserRepository;
 import com.kusuma.payment_engine.service.AuditLogService;
+import com.kusuma.payment_engine.service.CurrentUserService;
 import com.kusuma.payment_engine.service.EmailService;
 import com.kusuma.payment_engine.service.NotificationService;
 import com.kusuma.payment_engine.service.TransactionService;
@@ -65,12 +65,13 @@ public class TransactionServiceImpl implements TransactionService {
 	private final NotificationService notificationService;
 	private final BeneficiaryRepository beneficiaryRepository;
 	private final EmailService emailService;
+	private final CurrentUserService currentUserService;
 
 	@Override
 	@Transactional
 	public TransactionResponse transfer(TransferRequest request) {
 		try {
-			User user = getAuthenticatedUser();
+			User user = currentUserService.getAuthenticatedUser();
 			Account sender = getUserAccount(user);
 			Account receiver = accountRepository.findByAccountNumber(request.receiverAccountNumber())
 					.orElseThrow(() -> new AccountNotFoundException("Receiver account not found"));
@@ -120,7 +121,7 @@ public class TransactionServiceImpl implements TransactionService {
 	@Transactional
 	public TransactionResponse deposit(TransactionAmountRequest request) {
 		try {
-			User user = getAuthenticatedUser();
+			User user = currentUserService.getAuthenticatedUser();
 			Account account = getUserAccount(user);
 			AccountValidationUtil.validateUserAndAccountForTransactions(user, account);
 			validateAmount(request.amount());
@@ -145,7 +146,7 @@ public class TransactionServiceImpl implements TransactionService {
 	@Transactional
 	public TransactionResponse withdraw(TransactionAmountRequest request) {
 		try {
-			User user = getAuthenticatedUser();
+			User user = currentUserService.getAuthenticatedUser();
 			Account account = getUserAccount(user);
 			AccountValidationUtil.validateUserAndAccountForTransactions(user, account);
 			validateAmount(request.amount());
@@ -171,7 +172,7 @@ public class TransactionServiceImpl implements TransactionService {
 
 	@Override
 	public List<TransactionResponse> getMyTransactions() {
-		User user = getAuthenticatedUser();
+		User user = currentUserService.getAuthenticatedUser();
 		Account account = getUserAccount(user);
 		AccountValidationUtil.validateUserStatus(user);
 		return transactionRepository.findBySenderAccountOrReceiverAccountOrderByProcessedAtDesc(account, account)
@@ -180,7 +181,7 @@ public class TransactionServiceImpl implements TransactionService {
 
 	@Override
 	public TransactionResponse getTransactionByReference(String transactionReference) {
-		User user = getAuthenticatedUser();
+		User user = currentUserService.getAuthenticatedUser();
 		AccountValidationUtil.validateUserStatus(user);
 		Account account = getUserAccount(user);
 		Transaction transaction = transactionRepository.findByTransactionReference(transactionReference)
@@ -197,7 +198,7 @@ public class TransactionServiceImpl implements TransactionService {
 
 	@Override
 	public List<TransactionResponse> getMiniStatement() {
-		User user = getAuthenticatedUser();
+		User user = currentUserService.getAuthenticatedUser();
 		Account account = getUserAccount(user);
 		AccountValidationUtil.validateUserStatus(user);
 		return transactionRepository.findTop10BySenderAccountOrReceiverAccountOrderByProcessedAtDesc(account, account)
@@ -208,7 +209,7 @@ public class TransactionServiceImpl implements TransactionService {
 	@Transactional
 	public TransactionResponse transferToBeneficiary(BeneficiaryTransferRequest request) {
 		try {
-			User user = getAuthenticatedUser();
+			User user = currentUserService.getAuthenticatedUser();
 			Account sender = getUserAccount(user);
 			Beneficiary beneficiary = beneficiaryRepository.findByIdAndOwnerUser(request.beneficiaryId(), user)
 					.orElseThrow(() -> new BeneficiaryNotFoundException("Beneficiary not found"));
@@ -257,7 +258,7 @@ public class TransactionServiceImpl implements TransactionService {
 	public TransactionResponse getTransaction(String reference) {
 		Transaction transaction = transactionRepository.findByTransactionReference(reference)
 				.orElseThrow(() -> new TransactionNotFoundException("Transaction not found"));
-		User user = getAuthenticatedUser();
+		User user = currentUserService.getAuthenticatedUser();
 		boolean isAdmin = user.getRole() == Role.ADMIN;
 		if (!isAdmin && !isTransactionOwner(transaction, user)) {
 			throw new UnauthorizedTransactionAccessException("You are not authorized to view this transaction.");
@@ -270,7 +271,7 @@ public class TransactionServiceImpl implements TransactionService {
 		if (request.fromDate() != null && request.toDate() != null && request.fromDate().isAfter(request.toDate())) {
 			throw new InvalidTransactionException("From date cannot be after To date");
 		}
-		User user = getAuthenticatedUser();
+		User user = currentUserService.getAuthenticatedUser();
 		AccountValidationUtil.validateUserStatus(user);
 		Account account = getUserAccount(user);
 		Specification<Transaction> spec = Specification.where(TransactionSpecification.belongsToAccount(account));
@@ -373,12 +374,6 @@ public class TransactionServiceImpl implements TransactionService {
 		return transactions.map(this::mapToResponse);
 	}
 
-	private User getAuthenticatedUser() {
-		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		return userRepository.findByEmail(authentication.getName())
-				.orElseThrow(() -> new UserNotFoundException("User not found"));
-	}
-
 	private Account getUserAccount(User user) {
 		return accountRepository.findByUser(user).orElseThrow(() -> new AccountNotFoundException("Account not found"));
 	}
@@ -420,7 +415,7 @@ public class TransactionServiceImpl implements TransactionService {
 	}
 
 	private User getValidatedAdmin() {
-		User admin = getAuthenticatedUser();
+		User admin = currentUserService.getAuthenticatedUser();
 		AccountValidationUtil.validateUserStatus(admin);
 		if (admin.getRole() != Role.ADMIN) {
 			throw new UnauthorizedTransactionAccessException("Admin access required");
